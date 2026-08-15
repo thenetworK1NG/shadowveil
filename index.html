@@ -4,9 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Shadowveil — Mythic Creature Collectibles</title>
-<script defer src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js" onerror="window.__peerOffline=1"></script>
-<script defer src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" onerror="window.__qrOffline=1"></script>
-<script defer src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js" onerror="window.__scanOffline=1"></script>
+<script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js" onerror="window.__fbOffline=1"></script>
+<script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js" onerror="window.__fbOffline=1"></script>
 <style>
   :root {
     --bg: #08050f; --ink: #f0eef7; --muted: #8f86a5;
@@ -455,8 +454,6 @@
   .trade-tabs { display: flex; justify-content: center; gap: 12px; margin-bottom: 24px; flex-wrap: wrap; }
   .trade-tab { padding: 10px 22px; font-size: 11px; }
   .trade-tab.active { background: linear-gradient(120deg, var(--gold), #c9a64a); color: #0a120d; border-color: transparent; font-weight: 600; }
-  .trade-qr { display: flex; justify-content: center; margin: 12px 0; }
-  .trade-qr img, .trade-qr canvas { border-radius: 14px; background: #fff; padding: 10px; }
   .trade-code { font-size: 26px; letter-spacing: 6px; color: var(--gold); text-align: center; font-weight: 700; margin: 6px 0; }
   .trade-offer-line, .trade-review-text, .trade-waiting, .trade-join-status {
     text-align: center; color: var(--muted); font-size: 12px; letter-spacing: 1px; line-height: 1.8; margin: 6px auto; max-width: 460px;
@@ -472,7 +469,19 @@
   .trade-review-cards { display: flex; gap: 18px; justify-content: center; flex-wrap: wrap; margin: 12px 0; }
   .trade-side { text-align: center; font-size: 10px; letter-spacing: 3px; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
   .trade-review-cards .p-card { width: 140px; height: 203px; }
-  #tradeScanner video { width: min(320px, 80vw); border-radius: 14px; }
+  .trade-steps { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin: 0 auto 18px; }
+  .trade-step {
+    font-size: 9px; letter-spacing: 2px; text-transform: uppercase;
+    padding: 7px 14px; border-radius: 999px;
+    color: var(--muted); background: rgba(255,255,255,.04);
+    border: 1px solid rgba(255,255,255,.1);
+  }
+  .trade-step.on { color: #0a120d; background: linear-gradient(120deg, var(--gold), #c9a64a); border-color: transparent; font-weight: 600; }
+  .trade-step.done { color: var(--violet); border-color: rgba(138,92,246,.5); }
+  .trade-swap { display: flex; align-items: center; justify-content: center; gap: 18px; flex-wrap: wrap; margin: 14px 0 6px; }
+  .trade-swap > div { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .trade-arrow { font-size: 30px; color: var(--gold); text-shadow: 0 0 18px rgba(232,193,90,.6); animation: arrowPulse 1.6s ease-in-out infinite; }
+  @keyframes arrowPulse { 0%,100% { transform: scale(1); opacity: .8; } 50% { transform: scale(1.18); opacity: 1; } }
   .trade-done-title { text-align: center; font-size: 15px; letter-spacing: 4px; text-transform: uppercase; color: var(--gold); margin-bottom: 10px; }
   .trade-wait { display: flex; flex-direction: column; align-items: center; }
 
@@ -577,7 +586,7 @@
       <button class="menu-tile" id="menuTradeBtn">
         <span class="tile-ico">🤝</span>
         <span class="tile-txt">Creature Trade</span>
-        <span class="tile-sub">Offer a creature. Swap with a buddy.</span>
+        <span class="tile-sub">Two-way swaps — pick a card, buddy picks theirs.</span>
       </button>
     </div>
   </section>
@@ -644,7 +653,8 @@
 
   <section class="trade hidden" id="tradeScreen">
     <h2>Creature Trade</h2>
-    <p class="sub" id="tradeSub">Offer a creature, name your price, and swap with a buddy.</p>
+    <p class="sub" id="tradeSub">Pick a card, your buddy picks theirs, and you both confirm the swap — two-sided, no waiting around.</p>
+    <p class="trade-join-status">How it works: both players have the game open — one starts a trade, the other joins with the code, then you both hit confirm to swap.</p>
     <div id="tradeBody"></div>
     <div class="actions" style="margin-top:26px">
       <button id="backMenuTrade">← Back to Menu</button>
@@ -701,7 +711,10 @@ let dealt = [];
 /* ---- persistent collection ---- */
 const SAVE_KEY = 'shadowveil-state';
 const DEFAULT_STATS = { battles: 0, wins: 0, losses: 0, won: 0, lost: 0, streak: 0 };
-let state = { owned: [], coins: 500, stats: { ...DEFAULT_STATS } };
+/* New players start with one of each role already bound, so you can
+   jump straight into a trade with a friend — no pack-grinding first. */
+const STARTERS = ['Frost, Hoarfrost Golem', 'Bahar, Jade Oracle', 'Aria, Moonlit Sylph'];
+let state = { owned: STARTERS.map(n => ({ name: n, wins: 0, losses: 0, streak: 0 })), coins: 500, stats: { ...DEFAULT_STATS } };
 try {
   const raw = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null');
   if (raw) {
@@ -1106,22 +1119,23 @@ $('#menuTradeBtn').addEventListener('click', () => {
 $('#backMenuTrade').addEventListener('click', showMenu);
 
 /* ============================================================
-   CARD TRADE — offer a creature, a buddy scans the QR code,
-   and the swap only goes through once both sides agree.
+   CARD TRADE — a straight-forward two-way swap, synced live
+   through Firebase. You pick a card, your friend joins your
+   room code and picks theirs, then you BOTH confirm.
    ============================================================ */
 const TRADE_PREFIX = 'SV';
 const TRADE_ITEM = 'creature';
 const tradeBody = $('#tradeBody');
 let tradeMode = 'offer';        // 'offer' | 'join'
-let tradeStep = 1;
-let tradeOfferCard = null;      // creature I'm offering
-let tradeWantCard = null;       // creature I want in return
+let tradeStep = 1;              // 1 pick · 2 connect · 3 confirm
+let myGive = null;              // name of the card I'm giving away
+let theirGive = null;           // name of the card my buddy is giving me
 let tradeCode = null;
-let tradePeer = null;
-let tradeConn = null;
+let tradeRef = null;            // live firebase ref for the trade room
 let tradeBusy = false;
-let joinOffer = null;           // {o, w} offer received by the joiner
-let scanStream = null, scanLoop = null;
+let accepted = false;           // I already hit Confirm
+let done = false;               // trade finalised
+let fbDb = null;
 
 function el(tag, cls, text) {
   const d = document.createElement(tag);
@@ -1135,40 +1149,128 @@ function genCode() {
   for (let i = 0; i < 5; i++) s += chars[Math.floor(Math.random() * chars.length)];
   return TRADE_PREFIX + s;
 }
-function closePeer() {
-  if (tradeConn) { try { tradeConn.close(); } catch (e) {} tradeConn = null; }
-  if (tradePeer) { try { tradePeer.destroy(); } catch (e) {} tradePeer = null; }
+function fbInit() {
+  if (fbDb) return true;
+  if (!window.firebase) { flash('Trading needs internet — the Firebase library did not load.'); return false; }
+  firebase.initializeApp({
+    apiKey: 'AIzaSyB7KNURIlPW2S2J_aJdoX3c4L6BR5gma0g',
+    authDomain: 'secu-18771.firebaseapp.com',
+    databaseURL: 'https://secu-18771-default-rtdb.firebaseio.com',
+    projectId: 'secu-18771',
+    storageBucket: 'secu-18771.firebasestorage.app',
+    messagingSenderId: '119665330735',
+    appId: '1:119665330735:web:52bdea3a4a8aac362114da',
+    measurementId: 'G-GJMJJT9636',
+  });
+  fbDb = firebase.database();
+  return true;
+}
+function roomPath(code) { return 'shadowveil/trades/' + code; }
+
+/* ---- live room sync ---- */
+function watchRoom() {
+  if (!tradeRef) return;
+  tradeRef.off('value');
+  tradeRef.on('value', snap => {
+    if (done) return;
+    const r = snap.val();
+    if (!r || r.status === 'cancelled') {
+      if (tradeStep > 1) flash(r && r.status === 'cancelled' ? 'Your buddy cancelled the trade.' : 'The trade room was closed.');
+      stopWatching();
+      freshTrade(tradeMode);
+      return;
+    }
+    const isHost = tradeMode === 'offer';
+    const mine = isHost ? r.host : r.guest;
+    const theirs = isHost ? r.guest : r.host;
+    if (r.status === 'done') {
+      if (!theirGive && theirs) theirGive = theirs.name;
+      if (myGive && theirGive) finalize();
+      return;
+    }
+    if (theirs && theirs.name && theirGive !== theirs.name) {
+      theirGive = theirs.name;
+      if (tradeStep === 2) { tradeStep = 3; tradeBusy = false; renderTrade(); }
+    }
+    if (theirs && theirs.confirm && myGive && theirGive) {
+      if (accepted) finalize();
+      else flash('Your buddy has confirmed — confirm to complete the trade.');
+    }
+  });
+}
+function stopWatching() {
+  if (tradeRef) { tradeRef.off('value'); tradeRef = null; }
+}
+function cancelTrade() {
+  const ref = tradeRef;
+  if (ref && tradeStep > 1) {
+    ref.set({ status: 'cancelled', ts: Date.now() })
+      .then(() => setTimeout(() => ref.remove().catch(() => {}), 1500))
+      .catch(() => {});
+  }
 }
 function tradeCleanup() {
-  closePeer();
-  stopScanner();
+  stopWatching();
 }
-function openTrade() {
+function freshTrade(mode) {
   tradeCleanup();
-  tradeMode = 'offer'; tradeStep = 1;
-  tradeOfferCard = null; tradeWantCard = null;
-  tradeCode = null; tradeBusy = false; joinOffer = null;
+  tradeMode = mode;
+  tradeStep = 1;
+  myGive = null; theirGive = null;
+  tradeCode = null; tradeBusy = false; accepted = false; done = false;
   renderTrade();
+}
+function openTrade() { freshTrade('offer'); }
+
+/* ---- shared trade UI ---- */
+function stepChips() {
+  const steps = tradeMode === 'offer'
+    ? ['Pick your card', 'Share your code', 'Confirm the swap']
+    : ['Join the code', 'Pick your card', 'Confirm the swap'];
+  const row = document.createElement('div');
+  row.className = 'trade-steps';
+  steps.forEach((s, i) => {
+    const c = document.createElement('span');
+    c.className = 'trade-step' + (i + 1 === tradeStep ? ' on' : '') + (i + 1 < tradeStep ? ' done' : '');
+    c.innerHTML = (i + 1 < tradeStep ? '✓ ' : '') + (i + 1) + '. ' + s;
+    row.appendChild(c);
+  });
+  return row;
+}
+function swapPreview() {
+  const wrap = document.createElement('div');
+  wrap.className = 'trade-swap';
+  const left = document.createElement('div');
+  left.appendChild(el('p', 'trade-side', 'You give'));
+  left.appendChild(buildCard({ ...findPlayer(myGive) }, 'p-card', true));
+  const arrow = el('div', 'trade-arrow', '⇄');
+  const right = document.createElement('div');
+  right.appendChild(el('p', 'trade-side', 'You receive'));
+  right.appendChild(buildCard({ ...findPlayer(theirGive) }, 'p-card', true));
+  wrap.appendChild(left);
+  wrap.appendChild(arrow);
+  wrap.appendChild(right);
+  return wrap;
 }
 function renderTrade() {
   tradeBody.innerHTML = '';
   const tabs = document.createElement('div');
   tabs.className = 'trade-tabs';
   tabs.innerHTML = `
-    <button class="trade-tab ${tradeMode === 'offer' ? 'active' : ''}" id="tabOffer">Offer a ${TRADE_ITEM}</button>
+    <button class="trade-tab ${tradeMode === 'offer' ? 'active' : ''}" id="tabOffer">Start a Trade</button>
     <button class="trade-tab ${tradeMode === 'join' ? 'active' : ''}" id="tabJoin">Join a Trade</button>`;
   tradeBody.appendChild(tabs);
-  if (tradeMode === 'offer') renderOfferSteps(tradeBody);
-  else if (joinOffer) showReview(tradeBody);
+  if (tradeMode === 'offer') renderOffer(tradeBody);
   else renderJoin(tradeBody);
-  $('#tabOffer').addEventListener('click', () => { tradeMode = 'offer'; tradeStep = 1; joinOffer = null; renderTrade(); });
-  $('#tabJoin').addEventListener('click', () => { tradeMode = 'join'; joinOffer = null; renderTrade(); });
+  $('#tabOffer').addEventListener('click', () => { if (!tradeBusy) { cancelTrade(); freshTrade('offer'); } });
+  $('#tabJoin').addEventListener('click', () => { if (!tradeBusy) { cancelTrade(); freshTrade('join'); } });
 }
 
 /* ---- offer side ---- */
-function renderOfferSteps(box) {
+function renderOffer(box) {
+  box.appendChild(stepChips());
   if (tradeStep === 1) {
-    box.appendChild(el('p', 'pick-hint', `Pick the ${TRADE_ITEM} you're offering`));
+    box.appendChild(el('p', 'pick-hint', 'Pick the card you want to give away'));
     if (state.owned.length === 0) {
       box.appendChild(el('p', 'trade-offer-line', 'Your hoard is empty — open a pack first.'));
       return;
@@ -1179,209 +1281,204 @@ function renderOfferSteps(box) {
       const p = findPlayer(o.name);
       if (!p) return;
       const card = buildCard({ ...p, rec: o }, 'p-card', true);
-      card.addEventListener('click', () => { tradeOfferCard = p; tradeStep = 2; renderTrade(); });
+      card.addEventListener('click', () => { if (!tradeBusy) { myGive = p.name; createRoom(); } });
       picker.appendChild(card);
     });
     box.appendChild(picker);
   } else if (tradeStep === 2) {
-    box.appendChild(el('p', 'pick-hint', `Pick the ${TRADE_ITEM} you want in return`));
-    const picker = document.createElement('div');
-    picker.className = 'picker';
-    PLAYERS.forEach(p => {
-      if (p.name === tradeOfferCard.name) return;
-      const card = buildCard({ ...p }, 'p-card', true);
-      card.addEventListener('click', () => { tradeWantCard = p; createOffer(); });
-      picker.appendChild(card);
-    });
-    box.appendChild(picker);
+    renderWaiting(box);
   } else {
-    renderStep3(box);
+    renderConfirm(box);
   }
 }
-function createOffer() {
-  if (tradeBusy) return;
-  if (!window.Peer) { flash('Trade needs internet — the connection library did not load.'); return; }
+
+function createRoom() {
+  if (!fbInit()) return;
   tradeBusy = true;
-  closePeer();
   tradeCode = genCode();
-  tradePeer = new Peer(tradeCode);
-  tradePeer.on('open', () => { tradeBusy = false; tradeStep = 3; renderTrade(); });
-  tradePeer.on('connection', conn => {
-    tradeConn = conn;
-    conn.on('data', d => handleA(d));
-    conn.on('close', () => { if (tradeConn === conn && tradeStep === 3) flash('Your buddy disconnected.'); });
-  });
-  tradePeer.on('error', err => {
-    if (err.type === 'unavailable-id') { closePeer(); createOffer(); }
-    else { flash('Connection error — try again.'); tradeBusy = false; renderTrade(); }
-  });
+  tradeRef = fbDb.ref(roomPath(tradeCode));
+  tradeRef.set({ host: { name: myGive, confirm: false }, status: 'open', ts: Date.now() })
+    .then(() => {
+      sweepRooms();
+      tradeBusy = false; tradeStep = 2;
+      renderTrade();
+      watchRoom();
+    })
+    .catch(() => { flash('Could not reach the trade server.'); tradeBusy = false; });
 }
-function renderStep3(box) {
+function sweepRooms() {
+  if (!fbDb) return;
+  const now = Date.now();
+  fbDb.ref('shadowveil/trades').once('value')
+    .then(snap => snap.forEach(child => {
+      const v = child.val();
+      if (!v || (v.ts && now - v.ts > 3600000)) child.ref.remove().catch(() => {});
+    }))
+    .catch(() => {});
+}
+
+function renderWaiting(box) {
   const wait = document.createElement('div');
   wait.className = 'trade-wait';
-  wait.appendChild(el('p', 'pick-hint', 'Buddy scans or enters this code to see your offer'));
-  const qrWrap = document.createElement('div');
-  qrWrap.className = 'trade-qr';
-  qrWrap.id = 'tradeQr';
-  wait.appendChild(qrWrap);
-  const code = el('p', 'trade-code', tradeCode);
-  wait.appendChild(code);
-  wait.appendChild(el('p', 'trade-offer-line', `You offer <b>${tradeOfferCard.name}</b> for <b>${tradeWantCard.name}</b>`));
-  wait.appendChild(el('p', 'trade-waiting', 'Waiting for your buddy to accept…'));
-  const cancel = document.createElement('button');
-  cancel.id = 'tradeCancel';
-  cancel.textContent = 'Cancel Trade';
-  wait.appendChild(cancel);
+  wait.appendChild(el('p', 'pick-hint', 'Waiting for your friend to join…'));
+  wait.appendChild(el('p', 'trade-code', tradeCode));
+  const offer = document.createElement('p');
+  offer.className = 'trade-offer-line';
+  offer.innerHTML = `Send this code to your friend — they enter it, pick their card, and you both confirm. You're giving <b>${findPlayer(myGive).name}</b>`;
+  wait.appendChild(offer);
+  const acts = document.createElement('div');
+  acts.className = 'actions';
+  acts.style.marginTop = '16px';
+  acts.innerHTML = `<button id="tradeCancel">Cancel Trade</button>`;
+  wait.appendChild(acts);
   box.appendChild(wait);
-  $('#tradeCancel').addEventListener('click', () => { closePeer(); openTrade(); });
-  if (window.QRCode) {
-    new QRCode($('#tradeQr'), { text: tradeCode, width: 200, height: 200, correctLevel: QRCode.CorrectLevel.M });
-  } else {
-    $('#tradeQr').textContent = 'QR library offline — the code above works fine.';
-  }
+  $('#tradeCancel').addEventListener('click', () => { cancelTrade(); freshTrade('offer'); });
 }
-function handleA(d) {
-  if (!d) return;
-  if (d.t === 'join') {
-    if (tradeConn) tradeConn.send({ t: 'offer', o: tradeOfferCard.name, w: tradeWantCard.name });
-  } else if (d.t === 'accept') {
-    finalizeA();
-  } else if (d.t === 'decline') {
-    flash('Your buddy declined the trade.');
-    renderTrade();
-  } else if (d.t === 'cancel') {
-    flash('The trade was cancelled on the other side.');
-    renderTrade();
+
+function renderConfirm(box) {
+  box.appendChild(el('p', 'pick-hint', 'Review the swap — confirm to make it official'));
+  box.appendChild(swapPreview());
+  const acts = document.createElement('div');
+  acts.className = 'actions';
+  acts.style.marginTop = '16px';
+  acts.innerHTML = accepted
+    ? `<button disabled>Waiting for your friend to confirm…</button>`
+    : `<button class="primary" id="tradeAccept">Confirm Trade</button><button id="tradeDecline">Cancel</button>`;
+  box.appendChild(acts);
+  if (!accepted) {
+    $('#tradeAccept').addEventListener('click', () => {
+      accepted = true; tradeBusy = true;
+      const isHost = tradeMode === 'offer';
+      tradeRef.child(isHost ? 'host' : 'guest').update({ confirm: true })
+        .then(() => { tradeBusy = false; renderTrade(); })
+        .catch(() => { accepted = false; tradeBusy = false; flash('Could not reach the trade server.'); });
+    });
+    $('#tradeDecline').addEventListener('click', () => { cancelTrade(); freshTrade(tradeMode); });
   }
-}
-function finalizeA() {
-  if (!state.owned.some(x => x.name === tradeOfferCard.name)) {
-    try { if (tradeConn) tradeConn.send({ t: 'cancel' }); } catch (e) {}
-    flash('Offer card no longer available — trade cancelled.');
-    renderTrade();
-    return;
-  }
-  applySwap(tradeOfferCard.name, tradeWantCard);
-  saveState(); renderCollection(); updateWallet();
-  try { if (tradeConn) tradeConn.send({ t: 'done', o: tradeOfferCard.name, w: tradeWantCard.name }); } catch (e) {}
-  showTradeDone(tradeOfferCard, tradeWantCard);
-  closePeer();
 }
 
 /* ---- join side ---- */
 function renderJoin(box) {
-  const wrap = document.createElement('div');
-  wrap.className = 'trade-join';
-  wrap.appendChild(el('p', 'pick-hint', `Enter the trade code or scan the QR`));
-  const input = document.createElement('input');
-  input.id = 'tradeCodeInput';
-  input.className = 'trade-input';
-  input.maxLength = 10;
-  input.placeholder = 'e.g. ' + genCode();
-  input.autocomplete = 'off';
-  input.spellcheck = false;
-  wrap.appendChild(input);
-  const acts = document.createElement('div');
-  acts.className = 'actions';
-  acts.style.marginTop = '14px';
-  acts.innerHTML = `<button class="primary" id="tradeJoinBtn">Join Trade</button><button id="tradeScanBtn">Scan QR</button>`;
-  wrap.appendChild(acts);
-  const scanWrap = document.createElement('div');
-  scanWrap.id = 'tradeScanner';
-  scanWrap.className = 'hidden';
-  wrap.appendChild(scanWrap);
-  wrap.appendChild(el('p', 'trade-join-status', ''));
-  box.appendChild(wrap);
-  $('#tradeJoinBtn').addEventListener('click', joinTrade);
-  $('#tradeScanBtn').addEventListener('click', startScanner);
+  box.appendChild(stepChips());
+  if (tradeStep === 1) {
+    const wrap = document.createElement('div');
+    wrap.className = 'trade-join';
+    wrap.appendChild(el('p', 'pick-hint', 'Enter your friend\'s trade code'));
+    const input = document.createElement('input');
+    input.id = 'tradeCodeInput';
+    input.className = 'trade-input';
+    input.maxLength = 10;
+    input.placeholder = 'e.g. ' + genCode();
+    input.autocomplete = 'off';
+    input.spellcheck = false;
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') joinRoom(); });
+    wrap.appendChild(input);
+    const acts = document.createElement('div');
+    acts.className = 'actions';
+    acts.style.marginTop = '14px';
+    acts.innerHTML = `<button class="primary" id="tradeJoinBtn">Join Trade</button>`;
+    wrap.appendChild(acts);
+    wrap.appendChild(el('p', 'trade-join-status', ''));
+    box.appendChild(wrap);
+    $('#tradeJoinBtn').addEventListener('click', joinRoom);
+  } else if (tradeStep === 2) {
+    const recv = document.createElement('p');
+    recv.className = 'pick-hint';
+    recv.innerHTML = `You're receiving <b>${findPlayer(theirGive).name}</b> — pick the card you'll give in return`;
+    box.appendChild(recv);
+    if (state.owned.length === 0) {
+      box.appendChild(el('p', 'trade-offer-line', 'Your hoard is empty — open a pack first.'));
+      return;
+    }
+    const picker = document.createElement('div');
+    picker.className = 'picker';
+    state.owned.forEach(o => {
+      const p = findPlayer(o.name);
+      if (!p) return;
+      const card = buildCard({ ...p, rec: o }, 'p-card', true);
+      card.addEventListener('click', () => {
+        if (tradeBusy) return;
+        myGive = p.name;
+        tradeBusy = true;
+        tradeRef.child('guest').set({ name: myGive, confirm: false })
+          .then(() => { tradeBusy = false; tradeStep = 3; renderTrade(); })
+          .catch(() => { tradeBusy = false; flash('Could not reach the trade server.'); });
+      });
+      picker.appendChild(card);
+    });
+    box.appendChild(picker);
+    const acts = document.createElement('div');
+    acts.className = 'actions';
+    acts.style.marginTop = '16px';
+    acts.innerHTML = `<button id="tradeBackJoin">← Back</button>`;
+    box.appendChild(acts);
+    $('#tradeBackJoin').addEventListener('click', () => { cancelTrade(); freshTrade('join'); });
+  } else {
+    renderConfirm(box);
+  }
 }
-function joinTrade() {
+
+function joinRoom() {
   if (tradeBusy) return;
+  if (!fbInit()) return;
   const input = $('#tradeCodeInput');
   const code = (input ? input.value : '').trim().toUpperCase();
   if (!code) { flash('Enter the trade code first.'); return; }
-  if (!window.Peer) { flash('Trade needs internet — the connection library did not load.'); return; }
   tradeBusy = true;
-  $('#tradeJoinStatus').textContent = 'Connecting…';
-  closePeer();
-  tradePeer = new Peer();
-  tradePeer.on('open', () => {
-    const conn = tradePeer.connect(code, { reliable: true });
-    tradeConn = conn;
-    conn.on('open', () => {
-      conn.send({ t: 'join' });
-      $('#tradeJoinStatus').textContent = 'Connected — offer on its way…';
-    });
-    conn.on('data', d => handleB(d));
-    conn.on('close', () => { if (!joinOffer) { flash('Connection lost.'); tradeBusy = false; } });
-    conn.on('error', () => { flash('Could not connect to that code.'); tradeBusy = false; });
-  });
-  tradePeer.on('error', err => {
-    if (err.type === 'peer-unavailable') flash('No trade found with that code.');
-    else flash('Connection error — try again.');
+  const status = $('#tradeJoinStatus');
+  if (status) status.textContent = 'Looking for that trade…';
+  const ref = fbDb.ref(roomPath(code));
+  ref.once('value', snap => {
+    const r = snap.val();
+    if (!r || !r.host || r.status !== 'open') {
+      flash('No open trade found with that code.');
+      tradeBusy = false;
+      if (status) status.textContent = '';
+      return;
+    }
+    if (r.guest && r.guest.name) {
+      flash('That trade already has a partner.');
+      tradeBusy = false;
+      if (status) status.textContent = '';
+      return;
+    }
+    tradeRef = ref;
+    tradeCode = code;
+    theirGive = r.host.name;
+    tradeStep = 2;
     tradeBusy = false;
-    $('#tradeJoinStatus').textContent = '';
-  });
-}
-function handleB(d) {
-  if (!d) return;
-  if (d.t === 'offer') {
-    joinOffer = { o: d.o, w: d.w };
     renderTrade();
-  } else if (d.t === 'done') {
-    const gave = findPlayer(d.w);
-    const got = findPlayer(d.o);
-    applySwap(d.w, got);
-    saveState(); renderCollection(); updateWallet();
-    joinOffer = null; tradeBusy = false;
-    showTradeDone(gave, got);
-    closePeer();
-  } else if (d.t === 'cancel') {
-    flash('The trade was cancelled on the other side.');
-    joinOffer = null; tradeBusy = false; renderTrade();
+    watchRoom();
+  }).catch(() => { tradeBusy = false; flash('Could not reach the trade server.'); });
+}
+
+function finalize() {
+  if (done) return;
+  done = true;
+  const theirCard = findPlayer(theirGive);
+  if (!theirCard || !state.owned.some(x => x.name === myGive)) {
+    flash('The cards did not line up — trade cancelled.');
+    stopWatching();
+    freshTrade(tradeMode);
+    return;
   }
+  const gaveCard = findPlayer(myGive);
+  applySwap(myGive, theirCard);
+  saveState(); renderCollection(); updateWallet();
+  const ref = tradeRef;
+  if (ref) {
+    ref.child('status').set('done').catch(() => {});
+    setTimeout(() => ref.remove().catch(() => {}), 2000);
+  }
+  stopWatching();
+  showTradeDone(gaveCard, theirCard);
 }
-function showReview(box) {
-  const oCard = findPlayer(joinOffer.o);
-  const wCard = findPlayer(joinOffer.w);
-  const ownWant = state.owned.some(x => x.name === wCard.name);
-  box.appendChild(el('p', 'pick-hint', 'Incoming offer'));
-  const cards = document.createElement('div');
-  cards.className = 'trade-review-cards';
-  const youGet = document.createElement('div');
-  youGet.appendChild(el('p', 'trade-side', 'You get'));
-  youGet.appendChild(buildCard({ ...oCard }, 'p-card', true));
-  const youGive = document.createElement('div');
-  youGive.appendChild(el('p', 'trade-side', 'You give'));
-  youGive.appendChild(buildCard({ ...wCard }, 'p-card', true));
-  cards.appendChild(youGet);
-  cards.appendChild(youGive);
-  box.appendChild(cards);
-  const msg = el('p', 'trade-review-text',
-    ownWant
-      ? `${oCard.name} for your ${wCard.name} — fair?`
-      : `You don't own ${wCard.name}, so this trade can't go through.`);
-  box.appendChild(msg);
-  const acts = document.createElement('div');
-  acts.className = 'actions';
-  acts.innerHTML = `<button class="primary" id="tradeAccept" ${ownWant ? '' : 'disabled'}>Accept Trade</button><button id="tradeDecline">Decline</button>`;
-  box.appendChild(acts);
-  $('#tradeAccept').addEventListener('click', () => {
-    if (!ownWant || tradeBusy) return;
-    tradeBusy = true;
-    try { tradeConn.send({ t: 'accept' }); } catch (e) {}
-    $('#tradeJoinStatus') && ($('#tradeJoinStatus').textContent = 'Offer sent — waiting for the trade to finalise…');
-  });
-  $('#tradeDecline').addEventListener('click', () => {
-    try { tradeConn.send({ t: 'decline' }); } catch (e) {}
-    joinOffer = null; tradeBusy = false; renderTrade();
-  });
-}
+
 function showTradeDone(gave, got) {
   tradeBody.innerHTML = '';
-  const done = document.createElement('div');
-  done.className = 'trade-wait';
-  done.appendChild(el('p', 'trade-done-title', 'Trade complete'));
+  const doneEl = document.createElement('div');
+  doneEl.className = 'trade-wait';
+  doneEl.appendChild(el('p', 'trade-done-title', 'Trade complete'));
   const cards = document.createElement('div');
   cards.className = 'trade-review-cards';
   const gotBox = document.createElement('div');
@@ -1392,76 +1489,21 @@ function showTradeDone(gave, got) {
   gaveBox.appendChild(buildCard({ ...gave }, 'p-card', true));
   cards.appendChild(gotBox);
   cards.appendChild(gaveBox);
-  done.appendChild(cards);
+  doneEl.appendChild(cards);
   const btn = document.createElement('button');
   btn.className = 'primary';
   btn.id = 'tradeDoneBtn';
   btn.textContent = 'Done';
-  done.appendChild(btn);
-  tradeBody.appendChild(done);
-  $('#tradeDoneBtn').addEventListener('click', openTrade);
+  doneEl.appendChild(btn);
+  tradeBody.appendChild(doneEl);
+  $('#tradeDoneBtn').addEventListener('click', () => openTrade());
 }
+
 function applySwap(giveName, getCard) {
   state.owned = state.owned.filter(x => x.name !== giveName);
   if (!state.owned.some(x => x.name === getCard.name)) {
     state.owned.push({ name: getCard.name, wins: 0, losses: 0, streak: 0 });
   }
-}
-
-/* ---- QR scanner ---- */
-function startScanner() {
-  const wrap = $('#tradeScanner');
-  if (!wrap) return;
-  if (!wrap.classList.contains('hidden')) { stopScanner(); return; }
-  if (!navigator.mediaDevices || !window.jsQR) {
-    flash('Camera or QR library unavailable — type the code instead.');
-    return;
-  }
-  wrap.classList.remove('hidden');
-  const vid = document.createElement('video');
-  vid.id = 'tradeVid';
-  vid.setAttribute('playsinline', '');
-  vid.muted = true;
-  wrap.appendChild(vid);
-  navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }).then(stream => {
-    scanStream = stream;
-    vid.srcObject = stream;
-    vid.play();
-    scanLoop = requestAnimationFrame(function tick() {
-      if (vid.readyState === vid.HAVE_ENOUGH_DATA && vid.videoWidth > 0) {
-        const canvas = document.createElement('canvas');
-        canvas.width = vid.videoWidth;
-        canvas.height = vid.videoHeight;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(vid, 0, 0);
-        try {
-          const res = jsQR(ctx.getImageData(0, 0, canvas.width, canvas.height).data, canvas.width, canvas.height);
-          if (res && res.data) {
-            const code = String(res.data).trim().toUpperCase();
-            if (code.length <= 10 && code.startsWith(TRADE_PREFIX)) {
-              stopScanner();
-              const input = $('#tradeCodeInput');
-              if (input) input.value = code;
-              joinTrade();
-              return;
-            }
-          }
-        } catch (e) {}
-      }
-      scanLoop = requestAnimationFrame(tick);
-    });
-  }).catch(() => {
-    wrap.classList.add('hidden');
-    wrap.innerHTML = '';
-    flash('Camera unavailable — type the code instead.');
-  });
-}
-function stopScanner() {
-  if (scanLoop) cancelAnimationFrame(scanLoop);
-  scanLoop = null;
-  if (scanStream) { scanStream.getTracks().forEach(t => t.stop()); scanStream = null; }
-  const wrap = $('#tradeScanner');
-  if (wrap) { wrap.classList.add('hidden'); wrap.innerHTML = ''; }
 }
 
 /* ============================================================
