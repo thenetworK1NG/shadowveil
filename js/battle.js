@@ -11,6 +11,7 @@ const rewardTitle = $('#rewardTitle'), rewardSub = $('#rewardSub'), rewardCard =
 const focusPlayerCard = $('#focusPlayerCard'), focusBotCard = $('#focusBotCard'), focusTurn = $('#focusTurn'), focusElement = $('#focusElement');
 let candidatePool = [], picked = [null, null, null], playerSquad = [], botSquad = [], battleActive = false, botArtifacts = [];
 let battleEpoch = 0, battleTimers = new Set();
+let firstTurnFlip = null;
 
 /* Turn timers must belong to the fight that created them. Otherwise a
    player who leaves during a duel can have an old bot turn fire in a new
@@ -31,6 +32,7 @@ function abortBattle(force = false) {
   battleTimers.forEach(clearTimeout);
   battleTimers.clear();
   botArtifacts = [];
+  clearFirstTurnFlip();
   return true;
 }
 window.addEventListener('beforeunload', event => {
@@ -49,6 +51,12 @@ function slotFit(p) {
   if (p.role === 'Brute') return [0];
   if (p.role === 'Stalker') return [1];
   return [2]; // Mystic
+}
+function botElementFor(target) {
+  const counters = ELEMENT_KEYS.filter(key => elementMultiplier({ element: key }, target).multiplier > 1);
+  const alternatives = ELEMENT_KEYS.filter(key => key !== target.element);
+  const pool = counters.length && Math.random() < .62 ? counters : alternatives;
+  return pool[Math.floor(Math.random() * pool.length)] || randomElement();
 }
 
 /* ---- relic played popup: the artifact card flashes up on screen ---- */
@@ -119,6 +127,56 @@ function showDrainEffect(who, damage) {
   const healed = Math.round(damage * .5);
   effectPop(other, `-${Math.round(damage)}`, 'debuff');
   if (healed) effectPop(own, `+${healed} HP`, 'heal');
+}
+function clearFirstTurnFlip() {
+  if (firstTurnFlip) firstTurnFlip.remove();
+  firstTurnFlip = null;
+}
+function startFirstTurn(onPlayerTurn, onEnemyTurn) {
+  const playerStarts = Math.random() < .5;
+  const box = document.createElement('div');
+  box.className = 'first-turn-overlay';
+  box.innerHTML = `
+    <div class="first-turn-card">
+      <span class="first-turn-kicker">OPENING GAMBLE</span>
+      <strong>WHO MOVES FIRST?</strong>
+      <div class="turn-coin">?</div>
+      <span class="turn-roll">The veil decides</span>
+      <span class="turn-result"></span>
+    </div>`;
+  firstTurnFlip = box;
+  battlePit.appendChild(box);
+  requestAnimationFrame(() => box.classList.add('show'));
+  let revealed = false;
+  let started = false;
+  const begin = () => {
+    if (!revealed || started || firstTurnFlip !== box) return;
+    started = true;
+    firstTurnFlip = null;
+    box.classList.add('leaving');
+    setTimeout(() => {
+      box.remove();
+      if (!battleActive) return;
+      if (playerStarts) onPlayerTurn();
+      else onEnemyTurn();
+    }, 180);
+  };
+  box.addEventListener('click', begin);
+  box.addEventListener('keydown', event => {
+    if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); begin(); }
+  });
+  box.tabIndex = 0;
+  requestAnimationFrame(() => box.focus());
+  battleLater(() => {
+    if (firstTurnFlip !== box) return;
+    revealed = true;
+    const coin = box.querySelector('.turn-coin');
+    coin.textContent = playerStarts ? 'YOU' : 'ENEMY';
+    coin.classList.add(playerStarts ? 'player' : 'enemy');
+    box.classList.add('revealed');
+    box.querySelector('.turn-roll').textContent = 'Tap anywhere to start';
+    box.querySelector('.turn-result').textContent = playerStarts ? 'YOU START' : 'ENEMY START';
+  }, 700);
 }
 function bindEnemyPreview(card, enemy, getPlayer) {
   card.classList.add('enemy-previewable');
@@ -289,7 +347,7 @@ function buildBotSquad() {
      fresh level-one opponents. They are never written to the collection. */
   const virtualCard = (base, target) => {
     const level = Math.max(1, Math.floor(Number(target.level) || 1));
-    const card = effPlayer(base, { level, element: randomElement() });
+    const card = effPlayer(base, { level, element: botElementFor(target) });
     card.botLevel = level;
     return card;
   };
@@ -297,9 +355,12 @@ function buildBotSquad() {
     const distance = Math.abs(ovr(candidate) - ovr(target));
     const exactRole = base.role === SLOT_ROLES[slot] ? 8 : 0;
     const rarity = Math.max(0, RANK.indexOf(base.rarity)) * 0.8;
+    const matchup = elementMultiplier(candidate, target).multiplier;
+    const elementPlan = matchup > 1 ? 28 : matchup < 1 ? -22 : 0;
     /* Stay close enough to the player's level for a fair fight, then prefer
-       the stronger card when several candidates are equally suitable. */
-    return 120 - distance * 3 + ovr(candidate) * 0.08 + exactRole + rarity;
+       the stronger card and a favorable element plan when several candidates
+       are equally suitable. */
+    return 120 - distance * 3 + ovr(candidate) * 0.08 + exactRole + rarity + elementPlan;
   };
 
   const options = targets.map((target, slot) => PLAYERS
@@ -625,17 +686,22 @@ function startFight() {
   }
   function chooseBotSwitch() {
     const options = aliveIndexes(bAlive).filter(i => i !== bActive);
-    if (!options.length) return null;
+    if (!options.length || bShield) return null;
     const pc = playerSquad[pActive];
-    const currentScore = elementMultiplier(botSquad[bActive], pc).multiplier * 40 + ovr(botSquad[bActive]) + (bHP[bActive] / hpOf(botSquad[bActive])) * 25;
-    options.sort((a, b) => {
-      const bs = elementMultiplier(botSquad[b], pc).multiplier * 40 + ovr(botSquad[b]) + (bHP[b] / hpOf(botSquad[b])) * 25;
-      const as = elementMultiplier(botSquad[a], pc).multiplier * 40 + ovr(botSquad[a]) + (bHP[a] / hpOf(botSquad[a])) * 25;
-      return bs - as;
-    });
+    const score = index => {
+      const matchup = elementMultiplier(botSquad[index], pc).multiplier;
+      const elementPlan = matchup > 1 ? 34 : matchup < 1 ? -24 : 0;
+      const health = bHP[index] / hpOf(botSquad[index]);
+      return matchup * 62 + ovr(botSquad[index]) * .55 + health * 38 + elementPlan;
+    };
+    const currentMatchup = elementMultiplier(botSquad[bActive], pc).multiplier;
+    const currentHealth = bHP[bActive] / hpOf(botSquad[bActive]);
+    const currentScore = score(bActive);
+    options.sort((a, b) => score(b) - score(a));
     const best = options[0];
-    const bestScore = elementMultiplier(botSquad[best], pc).multiplier * 40 + ovr(botSquad[best]) + (bHP[best] / hpOf(botSquad[best])) * 25;
-    return (bHP[bActive] / hpOf(botSquad[bActive]) < .3 && bestScore > currentScore) || (elementMultiplier(pc, botSquad[bActive]).multiplier > 1 && bestScore > currentScore + 12) ? best : null;
+    const bestScore = score(best);
+    const urgent = currentHealth < .38 || currentMatchup < 1 || pMult > 1;
+    return urgent && bestScore > currentScore + 5 ? best : null;
   }
   function switchBot(index) {
     closeEngagement(null);
@@ -788,8 +854,6 @@ function startFight() {
     const playerLikelyKills = !bShield && playerExpected >= bHP[bActive];
     const botLikelyKills = !pShield && botExpected >= pHP[pActive];
     const botSureKills = !pShield && minimum(bc, bMult, bElement) >= pHP[pActive];
-    const chooseSwitch = chooseBotSwitch();
-    if (chooseSwitch !== null && !botSureKills && (pElement > 1 || bHP[bActive] < bMax * .3)) return switchBot(chooseSwitch);
     const attack = () => {
       let dmg = ovr(bc) * (0.85 + Math.random() * .3) * bElement;
       if (pShield) {
@@ -837,11 +901,15 @@ function startFight() {
     };
     const has = {}, slots = {};
     usable.forEach(x => { const a = findArtifact(x.name); if (a) { has[a.effect] = true; slots[a.effect] = x; } });
+    const chooseSwitch = chooseBotSwitch();
+    const playerThreat = pElement > 1 || pMult > 1 || playerLikelyKills;
     if (bMult > 1 && !pShield) return attack();
     if (botSureKills) return attack();
+    if (pShield) return attack();
     if (has.drain && drainDmg >= pHP[pActive]) return useArt(slots.drain, findArtifact(slots.drain.name));
-    if (has.shield && !bShield && (playerLikelyKills || pMult > 1)) return useArt(slots.shield, findArtifact(slots.shield.name));
-    if (has.stun && !bShield && playerLikelyKills) return useArt(slots.stun, findArtifact(slots.stun.name));
+    if (chooseSwitch !== null && !botLikelyKills && (bElement < 1 || playerThreat || bHP[bActive] < bMax * .3)) return switchBot(chooseSwitch);
+    if (has.shield && !bShield && playerThreat) return useArt(slots.shield, findArtifact(slots.shield.name));
+    if (has.stun && !pShield && !botLikelyKills && (playerThreat || bElement < 1)) return useArt(slots.stun, findArtifact(slots.stun.name));
     if (has.heal && bHP[bActive] < bMax * .55 && (playerLikelyKills || bHP[bActive] < bMax * .35)) return useArt(slots.heal, findArtifact(slots.heal.name));
     if (has.triple && !pShield && expected(bc, 3, bElement) >= pHP[pActive] && !botLikelyKills) return useArt(slots.triple, findArtifact(slots.triple.name));
     if (has.double && !pShield && expected(bc, 2, bElement) >= pHP[pActive] && !botLikelyKills) return useArt(slots.double, findArtifact(slots.double.name));
@@ -856,7 +924,7 @@ function startFight() {
     setHP($('#bc' + i), bHP[i], hpOf(botSquad[i]));
   }
   refreshActive();
-  playerTurn();
+  startFirstTurn(playerTurn, botTurn);
 }
 
 function setScore(p, b) {
