@@ -401,9 +401,10 @@ function startFight() {
       setTimeout(() => playerTurn(pc, bc, pEl, bEl), 1100);
     };
 
-    /* The enemy reads the duel and spends its relics with intent:
-       kill with the sure thing, deflect buffed hits, heal out of
-       reach of death, and only sacrifice a turn when the buff pays. */
+    /* The enemy holds its relics like they cost something. No cold
+       opens at full health — it attacks, and only spends when the
+       round is decided: to take the kill, to deflect a buffed blow,
+       or to drag itself out of death's reach. */
     const decide = () => {
       const has = {}, slots = {};
       usable.forEach(x => {
@@ -414,46 +415,32 @@ function startFight() {
       });
       if (bMult > 1) return 'attack';           // a loaded buff must be unleashed
       if (botKills) return 'attack';            // take the sure kill
+      // drain that ends the round — damage now, and it tops us up
       if (has.drain && drainDmg >= pcHP && !pShield) return slots.drain;
 
-      // deflect the player's buffed hit entirely — no heal matches that
+      // the one cold read: deflect a buffed hit entirely
       if (has.shield && playerBuffed) return slots.shield;
-      // top up when one hit from death or badly hurt
+      // top up when the next hit kills us or we're badly hurt
       if (has.heal && bcHP < bMax * 0.85 && (playerKills || bcHP < bMax * 0.4)) return slots.heal;
-      // or when a plain lethal hit is coming
+      // or deny a plain lethal hit
       if (has.shield && playerKills) return slots.shield;
+      // stun to skip a lethal turn when nothing else will do
+      if (has.stun && playerKills) return slots.stun;
 
-      // stun buys a free turn — save ourselves or set up the kill
-      if (has.stun && (playerKills || (bAvg * 2 >= pcHP && !pShield))) return slots.stun;
+      // buff only to close the kill — never as an opener. The round
+      // must have cost the player health already (we've struck once)
+      // and cost us health too, and we must survive the counter.
+      // Never spend into their ward.
+      if (has.triple && !pShield && pcHP < pMax && bcHP < bMax * 0.7 && pcHP > bAvg && pcHP <= bAvg * 3 && bcHP > pAvg) return slots.triple;
+      if (has.double && !pShield && pcHP < pMax && bcHP < bMax * 0.7 && pcHP > bAvg && pcHP <= bAvg * 2 && bcHP > pAvg) return slots.double;
 
-      // sacrifice this turn to double/triple the next, only if the
-      // player survives an attack and we survive their counter —
-      // and never while their ward is up, or the buff goes to waste
-      if (has.triple && !pShield && pcHP > bAvg && bcHP > pAvg * 1.15) return slots.triple;
-      if (has.double && !pShield && pcHP > bAvg * 1.5 && bcHP > pAvg * 1.15) return slots.double;
+      // behind on health? drain keeps the pressure and tops us up
+      if (has.drain && pcHP < pMax && bcHP < bMax * 0.6) return slots.drain;
 
-      // sustain: drain hurts them and tops us up
-      if (has.drain && bcHP < bMax * 0.65) return slots.drain;
-
-      return 'attack';
+      return 'attack';                          // otherwise hold the relics
     };
 
-    let plan = decide();
-    /* a sliver of chaos so it never reads as scripted — the enemy
-       sometimes leans on a relic even when a plain attack would do,
-       but never wastes one. */
-    if (plan === 'attack' && Math.random() < 0.15) {
-      const wild = usable.filter(x => {
-        const a = findArtifact(x.name);
-        if (!a) return false;
-        if (botKills) return false;                                  // don't throw away the kill
-        if (a.effect === 'heal' && bcHP > bMax * 0.6) return false;
-        if (a.effect === 'shield' && !playerBuffed && !playerKills) return false;
-        if ((a.effect === 'double' || a.effect === 'triple') && (bMult > 1 || pShield || pcHP <= bAvg * 1.2)) return false;
-        return true;
-      });
-      if (wild.length) plan = wild[Math.floor(Math.random() * wild.length)];
-    }
+    const plan = decide();
     if (plan === 'attack') return attack();
     return useArt(plan, findArtifact(plan.name));
   }
