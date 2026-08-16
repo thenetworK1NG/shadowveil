@@ -282,7 +282,7 @@
   /* ---- artifact strip (collection) ---- */
   .artifact-strip { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin: 0 0 26px; }
   .art-token {
-    position: relative; font-family: inherit; cursor: pointer; color: var(--ink);
+    position: relative; padding: 0; font-family: inherit; cursor: pointer; color: var(--ink);
     width: 54px; height: 54px; border-radius: 14px;
     display: grid; place-items: center;
     background: linear-gradient(160deg, rgba(138,92,246,.2), rgba(10,8,20,.8));
@@ -292,7 +292,7 @@
   }
   .art-token:hover { transform: translateY(-3px); box-shadow: 0 10px 26px rgba(0,0,0,.45); }
   .art-token.tier-rare { border-color: rgba(201,139,255,.6); box-shadow: 0 0 18px rgba(201,139,255,.16); }
-  .art-token .at-ico { font-size: 24px; line-height: 1; }
+  .art-token .at-ico { font-size: 24px; line-height: 1; transform: translateY(-0.08em); }
   .art-token .at-count {
     position: absolute; right: 3px; bottom: 3px;
     font-size: 9px; font-weight: 800; color: var(--gold);
@@ -988,7 +988,7 @@
   }
   .art-btn.tier-rare { background: linear-gradient(160deg, rgba(201,139,255,.24), rgba(10,8,20,.8)); border-color: rgba(201,139,255,.6); }
   .art-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,.45); }
-  .art-btn .at-ico { font-size: 20px; line-height: 1; }
+  .art-btn .at-ico { font-size: 20px; line-height: 1; transform: translateY(-0.08em); }
   .art-btn .at-count {
     position: absolute; right: 3px; bottom: 3px; z-index: 1;
     font-size: 9px; font-weight: 800; color: var(--gold);

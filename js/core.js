@@ -66,11 +66,12 @@ function syncSerials(name, used) {
 }
 function makeInstance(name, extra) {
   extra = extra || {};
+  const serial = extra.serial || mintSerial(name);
   const o = {
     id: genId(),
     name,
-    serial: extra.serial || mintSerial(name),
-    firstEd: extra.firstEd !== undefined ? !!extra.firstEd : Math.random() < FIRST_ED_CHANCE,
+    serial,
+    firstEd: isFirstEdition(serial),
     grade: extra.grade != null ? extra.grade : null,
     graded: !!extra.graded,
     grading: null,
@@ -79,6 +80,10 @@ function makeInstance(name, extra) {
   Object.keys(extra).forEach(k => { if (extra[k] !== undefined) o[k] = extra[k]; });
   return o;
 }
+/* A card only counts as 1st Edition when its serial falls in the
+   first print run — #0001 through #0010. Anything above that is a
+   regular print, regardless of how rare it looks. */
+function isFirstEdition(serial) { return serial >= 1 && serial <= 10; }
 /* Low serials are the bragging rights — the first copies ever bound
    are worth a premium on top of the grade. */
 function serialBonus(n) {
@@ -226,7 +231,7 @@ function cardValue(p, rec) {
   if (o) {
     if (o.graded) v *= GRADE_MULT[o.grade] || 1;
     v *= serialBonus(o.serial || 1);
-    if (o.firstEd) v *= FIRST_ED_MULT;
+    if (isFirstEdition(o.serial)) v *= FIRST_ED_MULT;
   }
   return Math.round(v);
 }
@@ -413,7 +418,10 @@ function renderLevelToast(s) {
     <div class="lt-foot">${up ? 'Stats forged +' + LEVEL_STEP + ' · W/L reset' : 'Dishonor bleeds stats back to base'}</div>`;
   const cardWrap = document.createElement('div');
   cardWrap.className = 'lt-card';
-  cardWrap.appendChild(buildCard({ ...effPlayer(p, { level: s.level, wins: 0, losses: 0, streak: 0 }), rec: null }, 'lt-draw', true));
+  cardWrap.appendChild(buildCard({
+    ...effPlayer(p, { level: s.level, wins: 0, losses: 0, streak: 0 }),
+    rec: { serial: s.serial, wins: 0, losses: 0, streak: 0, level: s.level },
+  }, 'lt-draw', true));
   box.appendChild(cardWrap);
   document.body.appendChild(box);
   void box.offsetWidth;
@@ -662,7 +670,7 @@ function publishGallery() {
   const payload = top.map(e => ({
     id: e.o.id, name: e.o.name, serial: e.o.serial,
     grade: e.o.grade, graded: e.o.graded, grading: !!e.o.grading,
-    firstEd: !!e.o.firstEd, level: e.o.level || 1,
+    firstEd: isFirstEdition(e.o.serial), level: e.o.level || 1,
     wins: e.o.wins || 0, losses: e.o.losses || 0,
   }));
   const json = JSON.stringify(payload);
@@ -771,7 +779,7 @@ function showCardInspect(p, o, opts) {
     <div class="ci-panel">
       <div class="ci-head">
         <span class="ci-rarity rare-${e.rarity}">${RARITY_LABEL[e.rarity]}</span>
-        ${o.firstEd ? `<span class="ci-firsted">★ 1st Edition</span>` : ''}
+        ${isFirstEdition(o.serial) ? `<span class="ci-firsted">★ 1st Edition</span>` : ''}
         <span class="ci-lvl">Lv ${lvl}</span>
         <span class="ci-role">${e.role} · ${e.realm}</span>
       </div>
@@ -846,10 +854,8 @@ function cardFront(p) {
         ? `<span class="grade-chip g" style="--gc:${GRADE_COLOR[rec.grade] || '#c9d3dd'}" title="${GRADE_FULL[rec.grade]}">${rec.grade}<em>${GRADE_LABEL[rec.grade]}</em></span>`
         : `<span class="grade-chip ungraded" title="Condition unknown — submit to the Grading Lab">?</span>`
     : `<span class="grade-chip ungraded" title="Condition unknown — submit to the Grading Lab">?</span>`;
-  const serial = rec && rec.serial
-    ? `<span class="serial${rec.serial <= 10 ? ' hot' : ''}">#${String(rec.serial).padStart(4, '0')}</span>`
-    : `<span class="serial">№${String(PLAYERS.indexOf(findPlayer(p.name)) + 1).padStart(3, '0')}</span>`;
-  const firstEd = rec && rec.firstEd
+  const serial = `<span class="serial${rec && rec.serial <= 10 ? ' hot' : ''}">#${String(rec && rec.serial ? rec.serial : 0).padStart(4, '0')}</span>`;
+  const firstEd = rec && isFirstEdition(rec.serial)
     ? `<span class="firsted" title="1st Edition print run">1st Edition</span>`
     : '';
   return `<div class="face tcard rare-${p.rarity}" style="--rar:${rarity.color}">

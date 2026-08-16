@@ -74,10 +74,10 @@ const GRADE_COLOR = { 10: '#e8c15a', 9: '#5ce8a0', 8: '#7fd4ff', 7: '#c9d3dd', 6
 /* ============================================================
    PRINT RUN — every minted card draws a totally random serial
    from its creature's 0001–1000 run (a low serial is a lottery
-   hit), and a scarce fraction come out stamped 1ST EDITION.
+   hit), and only the first 10 prints (#0001–#0010) come out stamped
+   1ST EDITION.
    ============================================================ */
 const MAX_SERIAL = 1000;          // serial pool per creature
-const FIRST_ED_CHANCE = 0.04;     // chance a fresh card is 1st Edition
 const FIRST_ED_MULT = 1.5;        // 1st Edition value multiplier
 
 /* A collector's album is a single page — one slot per card. When the

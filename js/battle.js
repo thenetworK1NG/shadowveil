@@ -506,7 +506,7 @@ function finishMatch(rounds, pScore, bScore) {
     const dir = checkLevelShift(o);
     if (dir) {
       const { prev, level } = applyLevelShift(o, dir);
-      shifts.push({ name: o.name, prev, level, dir });
+      shifts.push({ name: o.name, prev, level, dir, serial: o.serial });
     }
   });
 
@@ -521,12 +521,12 @@ function finishMatch(rounds, pScore, bScore) {
     } else {
       state.owned.push(inst);
     }
-    claimed = bestBot;
+    claimed = { p: bestBot, o: inst };
   } else {
     // defeat costs the crown jewel — the single most valuable instance in the whole collection
     const jewel = crownJewel();
     if (jewel) {
-      surrendered = jewel.p;
+      surrendered = jewel;
       jewelV = jewel.v;
       state.owned = state.owned.filter(x => x.id !== jewel.o.id);
     }
@@ -547,10 +547,10 @@ function finishMatch(rounds, pScore, bScore) {
 
   if (matchWon) {
     resultBanner.style.borderColor = 'rgba(74,222,128,.65)';
-    resultBanner.innerHTML = `🏆 Victory — you claim <b>${claimed.name}</b> (OVR ${ovr(claimed)}) from the enemy's coven!`;
+    resultBanner.innerHTML = `🏆 Victory — you claim <b>${claimed.p.name}</b> (OVR ${ovr(claimed.p)}) from the enemy's coven!`;
   } else if (surrendered) {
     resultBanner.style.borderColor = 'rgba(255,80,80,.65)';
-    resultBanner.innerHTML = `💔 Defeat — the enemy claims your crown jewel, <b>${surrendered.name}</b> (worth ${coin()}${jewelV}), into its hoard.`;
+    resultBanner.innerHTML = `💔 Defeat — the enemy claims your crown jewel, <b>${surrendered.p.name}</b> (worth ${coin()}${jewelV}), into its hoard.`;
   } else {
     resultBanner.style.borderColor = 'rgba(255,80,80,.65)';
     resultBanner.innerHTML = `💔 Defeat — your loaner coven escapes, but the enemy takes the glory.`;
@@ -593,20 +593,22 @@ function finishMatch(rounds, pScore, bScore) {
 }
 
 function showReward(matchWon, claimed, surrendered, jewelV) {
-  const card = claimed || surrendered;
-  if (!card) return;
+  const src = claimed || surrendered;
+  if (!src) return;
+  const pl = src.p;
+  const inst = src.o;
   rewardCard.innerHTML = '';
-  rewardCard.appendChild(buildCard({ ...card }, 'reward-draw', true));
+  rewardCard.appendChild(buildCard({ ...pl, rec: inst }, 'reward-draw', true));
   if (matchWon) {
     rewardGlow.className = 'reward-glow win';
     rewardTitle.textContent = '🏆 Claimed';
     rewardTitle.className = 'reward-title win';
-    rewardSub.textContent = `${card.name} joins your hoard`;
+    rewardSub.textContent = `${pl.name} joins your hoard`;
   } else {
     rewardGlow.className = 'reward-glow lose';
     rewardTitle.textContent = '💔 Lost';
     rewardTitle.className = 'reward-title lose';
-    rewardSub.textContent = `The enemy seizes ${card.name}${jewelV ? ' · worth ' + coin() + jewelV : ''}`;
+    rewardSub.textContent = `The enemy seizes ${pl.name}${jewelV ? ' · worth ' + coin() + jewelV : ''}`;
   }
   rewardFoot.textContent = matchWon ? 'A new creature bound to your hoard' : 'Your crown jewel is theirs now';
   rewardBox.classList.remove('hidden');
@@ -647,7 +649,7 @@ function statsHTML(rounds, pScore, bScore, matchWon, claimed, surrendered) {
       <span class="s-res">${r.pWin ? 'You' : 'Enemy'}</span>
     </div>`).join('');
   const tile = (label, val, cls = '') => `<div class="s-tile ${cls}"><b>${val}</b><span>${label}</span></div>`;
-  const prize = claimed ? `Claimed <b>${claimed.name}</b>` : surrendered ? `Lost <b>${surrendered.name}</b>` : 'No cards changed hands';
+  const prize = claimed ? `Claimed <b>${claimed.p.name}</b>` : surrendered ? `Lost <b>${surrendered.p.name}</b>` : 'No cards changed hands';
   return `
     <div class="stats-head"><b>Match Report</b><span>Rounds ${pWins}–${rounds.length - pWins} · ${matchWon ? 'Victory' : 'Defeat'}</span></div>
     <div class="stats-grid">

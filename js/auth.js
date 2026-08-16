@@ -75,7 +75,7 @@ function normalizeState() {
     if (!('wins' in o)) o.wins = 0;
     if (!('losses' in o)) o.losses = 0;
     if (!('streak' in o)) o.streak = 0;
-    if (!('firstEd' in o)) o.firstEd = false;
+    o.firstEd = isFirstEdition(o.serial);
     const arr = state.serialBase[o.name];
     if (Array.isArray(arr) && typeof o.serial === 'number' && !arr.includes(o.serial)) arr.push(o.serial);
   });

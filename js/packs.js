@@ -21,10 +21,11 @@ function openPack() {
     pack.classList.add('burst');
     setTimeout(() => { packZone.classList.add('hidden'); fan.classList.remove('hidden'); }, 420);
 
-    const items = [0, 1, 2, 3, 4].map(() =>
-      Math.random() < .35
-        ? { kind: 'artifact', a: ARTIFACTS[Math.floor(Math.random() * ARTIFACTS.length)] }
-        : { kind: 'creature', p: pickCard() });
+    const items = [0, 1, 2, 3, 4].map(() => {
+      if (Math.random() < .35) return { kind: 'artifact', a: ARTIFACTS[Math.floor(Math.random() * ARTIFACTS.length)] };
+      const p = pickCard();
+      return { kind: 'creature', p, inst: makeInstance(p.name) };
+    });
     // every pack hides at least one relic
     if (!items.some(i => i.kind === 'artifact')) {
       const idx = Math.floor(Math.random() * items.length);
@@ -42,7 +43,7 @@ function openPack() {
     items.forEach((item, i) => {
       const el = item.kind === 'artifact'
         ? buildArtifactTile(item.a, 'deal-art')
-        : buildCard(item.p, 'deal-card', true);
+        : buildCard({ ...item.p, rec: item.inst }, 'deal-card', true);
       el.style.width = cw + 'px';
       el.style.height = ch + 'px';
       el.style.setProperty('--tx', Math.round((i - 2) * step) + 'px');
@@ -129,7 +130,7 @@ function showBigCard() {
   if (item.kind === 'artifact') {
     viewerCard.appendChild(buildArtifactTile(item.a, 'viewer-art'));
   } else {
-    viewerCard.appendChild(buildCard({ ...item.p }, 'viewer-draw', true));
+    viewerCard.appendChild(buildCard({ ...item.p, rec: item.inst }, 'viewer-draw', true));
   }
   viewerCount.textContent = (inspectIdx + 1) + ' / ' + dealt.length;
   viewer.classList.remove('hidden');
@@ -171,7 +172,7 @@ function collectDealt() {
       return;
     }
     const p = item.p;
-    const inst = makeInstance(p.name);
+    const inst = item.inst;
     if (inst.firstEd) firstEd++;
     if (hoardFull()) {
       queued++;

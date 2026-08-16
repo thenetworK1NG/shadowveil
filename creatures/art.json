@@ -1,16 +1,16 @@
 {
   "creatures": [
-    { "name": "Vorlag, the Ember Wyrm",    "img": "" },
-    { "name": "Mordrax, the Void Serpent", "img": "" },
+    { "name": "Vorlag, the Ember Wyrm",    "img": "creatures/VorlagtheEmberWyrm.png" },
+    { "name": "Mordrax, the Void Serpent", "img": "creatures/MordraxtheVoidSerpent.png" },
     { "name": "Kaelen, Storm Warden",      "img": "creatures/KaelenStormWarden.png" },
-    { "name": "Zephyra, Wind Spirit",      "img": "" },
-    { "name": "Nyx, the Shadow Stalker",   "img": "" },
-    { "name": "Thorne, Grave Reaper",      "img": "" },
-    { "name": "Aria, Moonlit Sylph",       "img": "" },
-    { "name": "Dravak, Sand Devil",        "img": "" },
-    { "name": "Ilyra, Storm Harpy",        "img": "" },
-    { "name": "Bahar, Jade Oracle",        "img": "" },
-    { "name": "Frost, Hoarfrost Golem",    "img": "" },
-    { "name": "Wren, Twilight Sprite",     "img": "" }
+    { "name": "Zephyra, Wind Spirit",      "img": "creatures/ZephyraWindSpirit.png" },
+    { "name": "Nyx, the Shadow Stalker",   "img": "creature/NyxtheShadowStalker.png" },
+    { "name": "Thorne, Grave Reaper",      "img": "creatures/ThorneGraveReaper.png" },
+    { "name": "Aria, Moonlit Sylph",       "img": "creatures/AriaMoonlitSylph.png" },
+    { "name": "Dravak, Sand Devil",        "img": "creatures/DravakSandDevil.png" },
+    { "name": "Ilyra, Storm Harpy",        "img": "creatures/IlyraStormHarpy.png" },
+    { "name": "Bahar, Jade Oracle",        "img": "creatures/BaharJadeOracle.png" },
+    { "name": "Frost, Hoarfrost Golem",    "img": "creatures/FrostHoarfrostGolem.png" },
+    { "name": "Wren, Twilight Sprite",     "img": "creatures/WrenTwilightSprite.png" }
   ]
 }
