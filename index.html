@@ -4,6 +4,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Shadowveil — Mythic Creature Collectibles</title>
+<meta name="description" content="Open relic packs, bind mythic creatures, reveal hidden grades, trade, and battle for the crown jewel.">
+<meta name="theme-color" content="#1a1230">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Shadowveil">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="stylesheet" href="css/styles.css">
 <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js" onerror="window.__fbOffline=1"></script>
 <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js" onerror="window.__fbOffline=1"></script>
@@ -15,6 +24,7 @@
 <script defer src="js/battle.js"></script>
 <script defer src="js/grading.js"></script>
 <script defer src="js/auth.js"></script>
+<script defer src="js/app.js"></script>
 </head>
 <body>
 
@@ -209,6 +219,13 @@
       <div class="actions" style="margin-top:26px">
         <button class="danger" id="settingsLogout">Log Out</button>
         <button id="backMenuSettings">← Back to Menu</button>
+      </div>
+    </div>
+    <div class="settings-card">
+      <p class="settings-label">App</p>
+      <p class="settings-sub">Install Shadowveil on this device for a full-screen, offline-friendly experience.</p>
+      <div class="actions" style="margin-top:22px">
+        <button class="primary hidden" id="installAppBtn">Install App</button>
       </div>
     </div>
     <div class="settings-card danger-zone">
