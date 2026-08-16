@@ -414,10 +414,9 @@ function showTradeDone(gave, got, gaveRec, gotRec) {
 
 function applySwap(give, get) {
   state.owned = state.owned.filter(x => x.id !== give.id);
-  const received = makeInstance(get.name, { serial: get.serial, grade: get.grade, graded: get.graded, firstEd: get.firstEd });
+  const received = makeInstance(get.name, { serial: get.serial, grade: get.grade, graded: get.graded, firstEd: get.firstEd, element: get.element });
   // claim the incoming serial locally so we never re-mint it ourselves
   const arr = state.serialBase[get.name] = Array.isArray(state.serialBase[get.name]) ? state.serialBase[get.name] : [];
   if (typeof get.serial === 'number' && !arr.includes(get.serial)) { arr.push(get.serial); syncSerials(get.name, arr); }
   state.owned.push(received);
 }
-

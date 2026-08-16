@@ -126,12 +126,20 @@
 
   <section class="arena hidden" id="arenaScreen">
     <h2>Battle Arena</h2>
-    <p class="sub" id="arenaSub">Pick a brute, a stalker and a mystic — lose, and the enemy walks off with your crown jewel.</p>
+    <p class="sub" id="arenaSub">Pick any three cards from your hoard, then use attacks, elements, relics, or a tactical switch each turn.</p>
 
     <!-- squad slots + picker -->
     <div class="squad-bar" id="squadSlots"></div>
     <div class="picker-wrap">
-      <p class="pick-hint">Pick a brute, a stalker and a mystic</p>
+      <p class="pick-hint">Build your team · choose any three cards</p>
+      <div class="element-guide">
+        <span>🔥 Fire <b>beats</b> 🌿 Nature <i>· weak to 🌍 Earth</i></span>
+        <span>🌿 Nature <b>beats</b> ⚡ Lightning <i>· weak to 🔥 Fire</i></span>
+        <span>⚡ Lightning <b>beats</b> 💧 Water <i>· weak to 🌿 Nature</i></span>
+        <span>💧 Water <b>beats</b> ❄️ Ice <i>· weak to ⚡ Lightning</i></span>
+        <span>❄️ Ice <b>beats</b> 🌍 Earth <i>· weak to 💧 Water</i></span>
+        <span>🌍 Earth <b>beats</b> 🔥 Fire <i>· weak to ❄️ Ice</i></span>
+      </div>
       <div class="picker" id="picker"></div>
     </div>
 
@@ -142,13 +150,13 @@
     <div class="battle-hud hidden" id="battleHud">
       <div class="battle-score">
         <div class="bs-side you">
-          <span class="bs-tag">Your Coven</span>
+          <span class="bs-tag">Your Damage</span>
           <div class="bs-bar"><i id="youBar"></i></div>
           <span class="bs-pts" id="youPts">0</span>
         </div>
         <div class="bs-vs">VS</div>
         <div class="bs-side them">
-          <span class="bs-tag">The Enemy</span>
+          <span class="bs-tag">Enemy Damage</span>
           <div class="bs-bar"><i id="themBar"></i></div>
           <span class="bs-pts" id="themPts">0</span>
         </div>
@@ -157,18 +165,56 @@
     </div>
 
     <div class="battle-pit hidden" id="battlePit">
-      <div class="side">
-        <div class="side-tag">Your Coven</div>
-        <div class="squad" id="pSquad"></div>
+      <div class="battle-board-kicker">
+        <span class="live-mark"><i></i> Live duel</span>
+        <span>First coven to three KOs wins</span>
+        <span class="board-tip">Element advantage changes the odds</span>
       </div>
-      <div class="vs">VS</div>
-      <div class="side">
-        <div class="side-tag">The Enemy</div>
-        <div class="squad" id="bSquad"></div>
+      <div class="battle-focus" id="battleFocus">
+        <section class="combatant-panel yours" aria-label="Your coven">
+          <div class="panel-head">
+            <div class="panel-title">
+              <span class="panel-kicker">Player side</span>
+              <strong>Your Coven</strong>
+            </div>
+            <span class="panel-badge">3 cards</span>
+          </div>
+          <div class="deck-wrap">
+            <div class="deck-head"><span>Your Deck</span><b>Choose a switch</b></div>
+            <div class="squad" id="pSquad"></div>
+          </div>
+          <div class="focus-side yours">
+            <span class="focus-label">Your Active</span>
+            <div id="focusPlayerCard"></div>
+          </div>
+        </section>
+        <div class="focus-core">
+          <span class="core-sigil">✦</span>
+          <span class="focus-turn" id="focusTurn">YOUR TURN</span>
+          <span class="focus-vs">VS</span>
+          <span class="element-caption">Element effect</span>
+          <span class="focus-element" id="focusElement">Element matchup</span>
+        </div>
+        <section class="combatant-panel enemy" aria-label="Enemy coven">
+          <div class="panel-head">
+            <div class="panel-title">
+              <span class="panel-kicker">Opponent side</span>
+              <strong>Enemy Coven</strong>
+            </div>
+            <span class="panel-badge">3 cards</span>
+          </div>
+          <div class="focus-side enemy">
+            <span class="focus-label">Enemy Active</span>
+            <div id="focusBotCard"></div>
+          </div>
+          <div class="deck-wrap">
+            <div class="deck-head"><span>Enemy Deck</span><b>Watch their picks</b></div>
+            <div class="squad" id="bSquad"></div>
+          </div>
+        </section>
       </div>
     </div>
 
-    <div class="round-log" id="roundLog"></div>
     <div class="result-banner hidden" id="resultBanner"></div>
     <div class="stats-panel hidden" id="statsPanel"></div>
     <div class="actions" id="arenaActions"></div>
@@ -180,6 +226,7 @@
     <p class="count" id="count">0 creatures bound</p>
     <div class="grid" id="collection"></div>
     <div class="actions" style="margin-top:26px">
+      <button class="danger" id="sellUnfavBtn">Sell Non-Favorites</button>
       <button id="backMenuCol">← Back to Menu</button>
     </div>
   </section>

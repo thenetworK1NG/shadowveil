@@ -11,7 +11,38 @@
    Each creature: name, role, realm, img, power (0-100), cunning,
    arcana, rarity: 'bronze' | 'silver' | 'gold' | 'diamond'
    ============================================================ */
-const PLAYERS = [
+ const ELEMENTS = {
+   fire:      { label: 'Fire',      icon: '🔥', strong: 'nature',    weak: 'earth' },
+   nature:    { label: 'Nature',    icon: '🌿', strong: 'lightning', weak: 'fire' },
+   lightning: { label: 'Lightning', icon: '⚡', strong: 'water',     weak: 'nature' },
+   water:     { label: 'Water',     icon: '💧', strong: 'ice',       weak: 'lightning' },
+   ice:       { label: 'Ice',       icon: '❄️', strong: 'earth',     weak: 'water' },
+    earth:     { label: 'Earth',     icon: '🌍', strong: 'fire',      weak: 'ice' },
+  };
+  const ELEMENT_KEYS = Object.keys(ELEMENTS);
+  const ELEMENT_ORDER = ['fire', 'nature', 'lightning', 'water', 'ice', 'earth'];
+ const ELEMENT_ADVANTAGE = 1.25;
+ const ELEMENT_DISADVANTAGE = 0.8;
+ function randomElement() { return ELEMENT_KEYS[Math.floor(Math.random() * ELEMENT_KEYS.length)]; }
+ function elementInfo(key) { return ELEMENTS[key] || ELEMENTS.fire; }
+  function elementMultiplier(attacker, defender) {
+    const attack = elementInfo(attacker && attacker.element);
+    const attackKey = attacker && attacker.element;
+    const defendKey = defender && defender.element;
+    if (attackKey === defendKey) return { multiplier: 1, text: '' };
+    if (attack.strong === defendKey) return { multiplier: ELEMENT_ADVANTAGE, text: `${attack.icon} ${attack.label} is strong` };
+    if (attack.weak === defendKey) return { multiplier: ELEMENT_DISADVANTAGE, text: `${attack.icon} ${attack.label} is weak` };
+    const attackIndex = ELEMENT_ORDER.indexOf(attackKey);
+    const defendIndex = ELEMENT_ORDER.indexOf(defendKey);
+    if (attackIndex >= 0 && defendIndex >= 0) {
+      return attackIndex < defendIndex
+        ? { multiplier: ELEMENT_ADVANTAGE, text: `${attack.icon} ${attack.label} has the edge` }
+        : { multiplier: ELEMENT_DISADVANTAGE, text: `${attack.icon} ${attack.label} is pressured` };
+    }
+    return { multiplier: 1, text: '' };
+  }
+
+ const PLAYERS = [
   { name: 'Vorlag, the Ember Wyrm',    role: 'Brute',   realm: 'Ember Court',    img: '', power: 94, cunning: 12, arcana: 82, rarity: 'diamond' },
   { name: 'Mordrax, the Void Serpent', role: 'Mystic',  realm: 'Shadowmere',     img: '', power: 15, cunning: 95, arcana: 70, rarity: 'diamond' },
   { name: 'Kaelen, Storm Warden',      role: 'Warden',  realm: 'Stormhold',      img: '', power: 88, cunning: 62, arcana: 85, rarity: 'gold'    },
@@ -49,7 +80,7 @@ const ARTIFACTS = [
   { name: 'Soulbrand Ember', icon: '🔥', tier: 'rare',   effect: 'triple', price: 95, desc: 'Your next attack deals 3× damage' },
 ];
 const ARTIFACT_STACK = 3;
-const BATTLE_ART_CAP = 4;         // each side can bring at most this many relics (stacked or not) into a fight
+const BATTLE_ART_CAP = 10;        // each side can use at most this many relics in a fight
 const ARTIFACT_TIER = { common: '#c8a66a', rare: '#c98bff' };
 const ARTIFACT_TIER_LABEL = { common: 'Relic', rare: 'Legendary' };
 
@@ -84,4 +115,3 @@ const FIRST_ED_MULT = 1.5;        // 1st Edition value multiplier
    page is full (15/15), new pulls must trade into a slot: sell them,
    let them go, or give up an owned card to make room. */
 const MAX_HOARD = 15;
-

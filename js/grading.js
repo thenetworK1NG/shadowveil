@@ -7,10 +7,29 @@
 const labScreen = $('#gradingScreen');
 const gradingBody = $('#gradingBody');
 
-function rollGrade() {
-  const r = Math.random() * 100;
+function rollGrade(o) {
+  const serial = Number(o && o.serial) || 0;
+  const wins = Math.max(0, Number(o && o.wins) || 0);
+  const losses = Math.max(0, Number(o && o.losses) || 0);
+  const played = wins + losses;
+  let bias = 0;
+
+  /* The print run and a card's battle history improve the odds gently;
+     they never replace the random grade roll. */
+  if (serial >= 1 && serial <= 10) bias += .55;       // 1st Edition
+  else if (serial <= 25) bias += .25;                 // near 1st Edition
+  if (played) {
+    const winRate = wins / played;
+    bias += Math.min(.25, played * .025);
+    bias += Math.max(-.35, Math.min(.45, (winRate - .5) * 1.1));
+  }
+
+  const weights = GRADE_WEIGHTS.map((weight, grade) =>
+    weight * Math.pow((grade + 1) / 6, bias));
+  const total = weights.reduce((sum, weight) => sum + weight, 0);
+  const r = Math.random() * total;
   let acc = 0;
-  for (let g = 1; g <= 10; g++) { acc += GRADE_WEIGHTS[g]; if (r < acc) return g; }
+  for (let g = 1; g <= 10; g++) { acc += weights[g]; if (r < acc) return g; }
   return 5;
 }
 
@@ -51,7 +70,7 @@ function settleGradings() {
   const done = [];
   state.owned.forEach(o => {
     if (o.grading && o.grading.done <= Date.now()) {
-      o.grade = rollGrade();
+      o.grade = rollGrade(o);
       o.graded = true;
       o.grading = null;
       done.push(o);
@@ -83,12 +102,16 @@ function showGradeReveal(o, done) {
   const p = findPlayer(o.name);
   const gc = GRADE_COLOR[o.grade] || '#c9d3dd';
   const legend = o.grade >= 9;
+  const wins = Math.max(0, Number(o.wins) || 0);
+  const losses = Math.max(0, Number(o.losses) || 0);
+  const played = wins + losses;
+  const record = `Record ${wins}W / ${losses}L · Played ${played} time${played === 1 ? '' : 's'}`;
   const title = o.grade === 10 ? 'GEM MINT 10' : (GRADE_FULL[o.grade] + ' ' + o.grade);
   const sub = legend
-    ? `A collector's legend. <b>${o.name}</b> #${String(o.serial).padStart(4, '0')} is now worth ${coin()}<b>${cardValue(p, o)}</b> — ${fmtMult(GRADE_MULT[o.grade])} its ungraded price.`
+    ? `A collector's legend. <b>${o.name}</b> #${String(o.serial).padStart(4, '0')} is now worth ${coin()}<b>${cardValue(p, o)}</b> — ${fmtMult(GRADE_MULT[o.grade])} its ungraded price.<br><small>${record}</small>`
     : o.grade <= 4
-      ? `Rough. <b>${o.name}</b> #${String(o.serial).padStart(4, '0')} is now worth ${coin()}<b>${cardValue(p, o)}</b> — the lab did it no favours.`
-      : `<b>${o.name}</b> #${String(o.serial).padStart(4, '0')} graded ${GRADE_LABEL[o.grade]} — now worth ${coin()}<b>${cardValue(p, o)}</b>.`;
+      ? `Rough. <b>${o.name}</b> #${String(o.serial).padStart(4, '0')} is now worth ${coin()}<b>${cardValue(p, o)}</b> — the lab did it no favours.<br><small>${record}</small>`
+      : `<b>${o.name}</b> #${String(o.serial).padStart(4, '0')} graded ${GRADE_LABEL[o.grade]} — now worth ${coin()}<b>${cardValue(p, o)}</b>.<br><small>${record}</small>`;
   const box = document.createElement('div');
   box.className = 'grade-reveal';
   box.innerHTML = `
@@ -130,7 +153,7 @@ function renderGrading() {
 
   const info = document.createElement('p');
   info.className = 'lab-info';
-  info.innerHTML = `Every card hides a condition grade. Send one in for <b>${coin()}${GRADE_FEE}</b> — the lab keeps <b>${GRADE_SLOTS} cards</b> at a time and takes <b>${fmtTime(GRADE_TIME)}</b>. A <b>GEM MT 10</b> is ten times the value; a <b>PR 1</b> is near scrap. Brave enough to roll the dice?`;
+  info.innerHTML = `Every card hides a condition grade. Send one in for <b>${coin()}${GRADE_FEE}</b> — the lab keeps <b>${GRADE_SLOTS} cards</b> at a time and takes <b>${fmtTime(GRADE_TIME)}</b>. A low serial, battle record, and total plays can gently improve the odds, but every result is still randomized. A <b>GEM MT 10</b> is ten times the value; a <b>PR 1</b> is near scrap. Brave enough to roll the dice?`;
   gradingBody.appendChild(info);
 
   const slotHead = document.createElement('p');

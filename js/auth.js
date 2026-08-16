@@ -75,11 +75,14 @@ function normalizeState() {
     if (!('wins' in o)) o.wins = 0;
     if (!('losses' in o)) o.losses = 0;
     if (!('streak' in o)) o.streak = 0;
+    if (!Number.isFinite(o.xp)) o.xp = xpForLevel(o.level || 1);
+    o.favorite = !!o.favorite;
+    if (!o.element) o.element = randomElement();
     o.firstEd = isFirstEdition(o.serial);
     const arr = state.serialBase[o.name];
     if (Array.isArray(arr) && typeof o.serial === 'number' && !arr.includes(o.serial)) arr.push(o.serial);
   });
-  if (typeof state.coins !== 'number') state.coins = 500;
+  if (typeof state.coins !== 'number') state.coins = STARTING_COINS;
   state.stats = Object.assign({ battles: 0, wins: 0, losses: 0, won: 0, lost: 0, streak: 0 }, state.stats || {});
   if (!Array.isArray(state.artifacts)) state.artifacts = [];
 }
@@ -113,6 +116,7 @@ async function enterGame(user, hash) {
   renderAll();
   svPushState();
   if (typeof watchLeaderboard === 'function') watchLeaderboard();
+  if (typeof triggerBankruptcy === 'function' && isBankrupt()) triggerBankruptcy();
 }
 
 async function register(user, pw) {
@@ -139,6 +143,7 @@ async function verifySession(user, hash) {
   return rec.hash === hash;
 }
 function logout() {
+  if (typeof battleActive !== 'undefined' && battleActive) return;
   localStorage.removeItem(SESSION_KEY);
   currentUser = null;
   if (typeof unwatchLeaderboard === 'function') unwatchLeaderboard();
@@ -232,6 +237,7 @@ function openClearAccountPopup() {
 }
 
 function clearAccountData() {
+  if (typeof battleActive !== 'undefined' && battleActive) return;
   state = freshState();
   saveState();
   if (currentUser) {

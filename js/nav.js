@@ -4,10 +4,13 @@
 const menu = document.querySelector('.menu');
 const siteHeader = $('#siteHeader');
 const packScreen = $('#packScreen'), arenaScreen = $('#arenaScreen'), collectionScreen = $('#collectionScreen'), gradingScreen = $('#gradingScreen'), tradeScreen = $('#tradeScreen'), settingsScreen = $('#settingsScreen'), hallScreen = $('#leaderboardScreen');
+function battleLocked() { return typeof battleActive !== 'undefined' && battleActive; }
 function setHeaderVisible(v) {
   if (siteHeader) siteHeader.classList.toggle('hidden', !v);
 }
 function showMenu() {
+  if (battleLocked()) return;
+  if (typeof abortBattle === 'function') abortBattle();
   menu.classList.remove('hidden');
   packScreen.classList.add('hidden');
   arenaScreen.classList.add('hidden');
@@ -23,6 +26,7 @@ function showMenu() {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 function openSettings() {
+  if (battleLocked()) return;
   menu.classList.add('hidden');
   packScreen.classList.add('hidden');
   arenaScreen.classList.add('hidden');
@@ -38,6 +42,7 @@ function openSettings() {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 $('#menuHallBtn').addEventListener('click', () => {
+  if (battleLocked()) return;
   menu.classList.add('hidden');
   arenaScreen.classList.add('hidden');
   gradingScreen.classList.add('hidden');
@@ -52,6 +57,7 @@ $('#menuHallBtn').addEventListener('click', () => {
 });
 $('#backMenuHall').addEventListener('click', showMenu);
 $('#menuPackBtn').addEventListener('click', () => {
+  if (battleLocked()) return;
   menu.classList.add('hidden');
   gradingScreen.classList.add('hidden');
   hallScreen.classList.add('hidden');
@@ -61,6 +67,7 @@ $('#menuPackBtn').addEventListener('click', () => {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 });
 $('#menuArenaBtn').addEventListener('click', () => {
+  if (battleLocked()) return;
   menu.classList.add('hidden');
   hallScreen.classList.add('hidden');
   arenaScreen.classList.remove('hidden');
@@ -70,6 +77,7 @@ $('#menuArenaBtn').addEventListener('click', () => {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 });
 $('#menuColBtn').addEventListener('click', () => {
+  if (battleLocked()) return;
   menu.classList.add('hidden');
   arenaScreen.classList.add('hidden');
   gradingScreen.classList.add('hidden');
@@ -82,6 +90,7 @@ $('#menuColBtn').addEventListener('click', () => {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 });
 $('#menuGradingBtn').addEventListener('click', () => {
+  if (battleLocked()) return;
   menu.classList.add('hidden');
   arenaScreen.classList.add('hidden');
   hallScreen.classList.add('hidden');
@@ -97,6 +106,7 @@ $('#backMenuCol').addEventListener('click', showMenu);
 $('#backMenuPack').addEventListener('click', showMenu);
 $('#backMenuGrading').addEventListener('click', showMenu);
 $('#menuTradeBtn').addEventListener('click', () => {
+  if (battleLocked()) return;
   menu.classList.add('hidden');
   arenaScreen.classList.add('hidden');
   gradingScreen.classList.add('hidden');

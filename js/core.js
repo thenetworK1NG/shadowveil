@@ -11,6 +11,7 @@ let currentUser = null; // set by auth.js once signed in
 /* ---- persistent collection ---- */
 const SAVE_KEY = 'shadowveil-state';
 const DEFAULT_STATS = { battles: 0, wins: 0, losses: 0, won: 0, lost: 0, streak: 0 };
+const STARTING_COINS = 100;
 /* New players start with one of each role already bound, so you can
    jump straight into a trade with a friend — no pack-grinding first. */
 const STARTERS = ['Frost, Hoarfrost Golem', 'Bahar, Jade Oracle', 'Aria, Moonlit Sylph'];
@@ -75,7 +76,7 @@ function makeInstance(name, extra) {
     grade: extra.grade != null ? extra.grade : null,
     graded: !!extra.graded,
     grading: null,
-    wins: 0, losses: 0, streak: 0, level: 1,
+    wins: 0, losses: 0, streak: 0, level: 1, xp: 0, favorite: false, element: extra.element || randomElement(),
   };
   Object.keys(extra).forEach(k => { if (extra[k] !== undefined) o[k] = extra[k]; });
   return o;
@@ -95,21 +96,21 @@ function serialBonus(n) {
   return 1;
 }
 
-let state = { owned: [], coins: 500, stats: { ...DEFAULT_STATS }, serialBase: {} };
+let state = { owned: [], coins: STARTING_COINS, stats: { ...DEFAULT_STATS }, serialBase: {} };
 state.owned = STARTERS.map(n => makeInstance(n));
 try {
   const raw = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null');
   if (raw) {
     state = {
       owned: Array.isArray(raw.owned) ? raw.owned : [],
-      coins: typeof raw.coins === 'number' ? raw.coins : 500,
+      coins: typeof raw.coins === 'number' ? raw.coins : STARTING_COINS,
       stats: Object.assign({ ...DEFAULT_STATS }, raw.stats || {}),
       artifacts: Array.isArray(raw.artifacts) ? raw.artifacts : [],
       serialBase: raw.serialBase || {},
     };
   }
 } catch (e) {}
-state.owned.forEach(o => { if (!o.level) o.level = 1; });
+state.owned.forEach(o => { if (!o.level) o.level = 1; o.favorite = !!o.favorite; if (!o.element) o.element = randomElement(); });
 if (!Array.isArray(state.artifacts)) state.artifacts = [];
 if (!state.serialBase || typeof state.serialBase !== 'object') state.serialBase = {};
 /* Brand-new hoard (first play, or after wiping account data). The
@@ -123,7 +124,7 @@ function freshState() {
     carry[k] = typeof v === 'number' ? Array.from({ length: v }, (_, i) => i + 1) : Array.isArray(v) ? v.slice() : [];
   });
   if (state) state.serialBase = carry; // starters mint against the carried pools
-  const s = { owned: [], coins: 500, stats: { ...DEFAULT_STATS }, artifacts: [], serialBase: carry };
+  const s = { owned: [], coins: STARTING_COINS, stats: { ...DEFAULT_STATS }, artifacts: [], serialBase: carry };
   s.owned = STARTERS.map(n => makeInstance(n));
   return s;
 }
@@ -171,16 +172,16 @@ const PACK_COST = 100;
 const RARITY_BASE = { bronze: 6, silver: 15, gold: 41, diamond: 77 };
 
 /* ============================================================
-   LEVELING — a card climbs tiers on a good wins:losses ratio.
-   Each level adds +LEVEL_STEP to every stat and promotes the
+   LEVELING — cards earn XP from their own duels.
+   Wins add XP, losses remove some, and every threshold changes the
+   level. Each level adds +LEVEL_STEP to every stat and promotes the
    rarity one class up (Common → Uncommon → Rare → Mythic).
-   Sustained bad runs de-rank the card instead.
    ============================================================ */
 const LEVEL_STEP = 4;
-const LEVEL_UP_WINS = 3;
-const LEVEL_UP_RATIO = 2;    // needs at least 2 wins per loss to rise
-const LEVEL_DOWN_LOSSES = 3;
-const LEVEL_DOWN_RATIO = 2;  // sustained bad runs can knock it down
+const XP_PER_WIN = 100;
+const XP_PER_LOSS = 50;
+const XP_LEVEL_BASE = 250;
+const XP_LEVEL_STEP = 100;
 
 function effRarity(p, level) {
   const tier = Math.min(RANK.length - 1, RANK.indexOf(p.rarity) + (level - 1));
@@ -197,20 +198,48 @@ function effPlayer(p, o) {
     arcana: p.arcana + gain,
     rarity: effRarity(p, lvl),
     level: lvl,
+    element: o.element || p.element || randomElement(),
   };
 }
-function checkLevelShift(o) {
+function xpForLevel(level) {
+  const target = Number.isFinite(Number(level)) ? Math.max(1, Math.floor(Number(level))) : 1;
+  let total = 0;
+  for (let lv = 1; lv < target; lv++) {
+    total += XP_LEVEL_BASE + (lv - 1) * XP_LEVEL_STEP;
+  }
+  return total;
+}
+function levelForXP(xp) {
+  const numeric = Number(xp);
+  const value = Number.isFinite(numeric) ? Math.max(0, numeric) : 0;
+  let level = 1;
+  while (value >= xpForLevel(level + 1)) level++;
+  return level;
+}
+function xpProgress(o) {
+  const level = o.level || 1;
+  const floor = xpForLevel(level);
+  const next = xpForLevel(level + 1);
+  const xp = Math.max(floor, Number(o.xp) || 0);
+  return { current: xp - floor, needed: next - floor };
+}
+function recordCardDuel(o, won) {
   if (!o) return null;
-  if (o.wins >= LEVEL_UP_WINS && o.wins >= o.losses * LEVEL_UP_RATIO) return 'up';
-  if (o.level > 1 && o.losses >= LEVEL_DOWN_LOSSES && o.losses >= o.wins * LEVEL_DOWN_RATIO) return 'down';
-  return null;
-}
-function applyLevelShift(o, dir) {
+  o.wins = (o.wins || 0) + (won ? 1 : 0);
+  o.losses = (o.losses || 0) + (won ? 0 : 1);
+  o.streak = won ? (o.streak || 0) + 1 : 0;
+  if (!Number.isFinite(o.xp)) o.xp = xpForLevel(o.level || 1);
   const prev = o.level || 1;
-  o.level = Math.max(1, prev + (dir === 'up' ? 1 : -1));
-  o.wins = 0; o.losses = 0; o.streak = 0;
-  return { prev, level: o.level, dir };
+  o.xp = Math.max(0, o.xp + (won ? XP_PER_WIN : -XP_PER_LOSS));
+  o.level = levelForXP(o.xp);
+  return prev === o.level ? null : { prev, level: o.level, dir: o.level > prev ? 'up' : 'down' };
 }
+
+/* Migrate older cards that had levels but no XP ledger without changing
+   their existing level or battle record. */
+state.owned.forEach(o => {
+  if (!Number.isFinite(o.xp)) o.xp = xpForLevel(o.level || 1);
+});
 
 /* Card worth = rarity base scaled by stats, then driven by the battle
    ledger — every win stacks on 35% of value, every loss costs 20%.
@@ -234,6 +263,22 @@ function cardValue(p, rec) {
     if (isFirstEdition(o.serial)) v *= FIRST_ED_MULT;
   }
   return Math.round(v);
+}
+function totalHoardValue(list) {
+  return (list || state.owned || []).reduce((sum, o) => {
+    const p = findPlayer(o.name);
+    return p ? sum + cardValue(p, o) : sum;
+  }, 0);
+}
+function isBankrupt() {
+  const playable = new Set(state.owned
+    .filter(o => !o.grading && findPlayer(o.name))
+    .map(o => o.name));
+  if (playable.size >= 3 || state.owned.some(o => o.grading)) return false;
+  return (Number(state.coins) || 0) + totalHoardValue() < PACK_COST;
+}
+function checkBankruptcy() {
+  if (typeof triggerBankruptcy === 'function' && isBankrupt()) triggerBankruptcy();
 }
 
 /* A gold coin rendered in pure CSS — no emoji fonts required. */
@@ -269,17 +314,53 @@ function sellCard(id) {
 }
 function confirmSale() {
   if (!pendingSell) return;
-  const { p, o } = pendingSell;
-  const val = cardValue(p, o);
+  const { o } = pendingSell;
+  const current = state.owned.find(x => x.id === o.id);
+  if (!current || current.grading) {
+    confirmBox.classList.add('hidden');
+    pendingSell = null;
+    flash('That card is no longer available to sell.');
+    return;
+  }
+  const p = findPlayer(current.name);
+  if (!p) {
+    confirmBox.classList.add('hidden');
+    pendingSell = null;
+    return;
+  }
+  const val = cardValue(p, current);
   state.coins += val;
-  state.owned = state.owned.filter(x => x.id !== o.id);
+  state.owned = state.owned.filter(x => x.id !== current.id);
   saveState();
   updateWallet();
   renderCollection();
   refreshPackHint();
   confirmBox.classList.add('hidden');
   pendingSell = null;
-  flash(`${p.name} #${String(o.serial).padStart(4, '0')} sold — ${coin()}${val} added to your hoard`);
+  flash(`${p.name} #${String(current.serial).padStart(4, '0')} sold — ${coin()}${val} added to your hoard`);
+  checkBankruptcy();
+}
+function nonFavoriteSellables() {
+  return state.owned.filter(o => !o.favorite && !o.grading && findPlayer(o.name));
+}
+function sellNonFavorites() {
+  const cards = nonFavoriteSellables();
+  if (!cards.length) {
+    flash('No non-favorite cards are available to sell.');
+    return;
+  }
+  const total = cards.reduce((sum, o) => sum + cardValue(findPlayer(o.name), o), 0);
+  const noun = cards.length === 1 ? 'card' : 'cards';
+  if (!window.confirm(`Sell ${cards.length} non-favorite ${noun} for ${total} coins? Favorites will be kept.`)) return;
+  state.coins += total;
+  const sold = new Set(cards.map(o => o.id));
+  state.owned = state.owned.filter(o => !sold.has(o.id));
+  saveState();
+  updateWallet();
+  renderCollection();
+  refreshPackHint();
+  flash(`Sold ${cards.length} non-favorite ${noun} for ${coin()}${total}. Favorites were kept.`);
+  checkBankruptcy();
 }
 function cancelSale() {
   confirmBox.classList.add('hidden');
@@ -389,25 +470,29 @@ function openArtifactView(name) {
 }
 
 /* ---- level-up / de-rank notification ---- */
-let lvlToastTimer = null;
 let lvlToastQueue = [];
+let lvlToastActive = false;
 function showLevelToast(shift) {
   lvlToastQueue.push(shift);
-  if (lvlToastTimer) return;
-  const next = () => {
-    const s = lvlToastQueue.shift();
-    if (!s) { lvlToastTimer = null; return; }
-    lvlToastTimer = setTimeout(next, 2600);
-    renderLevelToast(s);
-  };
-  lvlToastTimer = setTimeout(next, 600);
+  pumpLevelToasts();
 }
-function renderLevelToast(s) {
+function pumpLevelToasts() {
+  if (lvlToastActive || !lvlToastQueue.length) return;
+  lvlToastActive = true;
+  renderLevelToast(lvlToastQueue.shift(), () => {
+    lvlToastActive = false;
+    pumpLevelToasts();
+  });
+}
+function renderLevelToast(s, done) {
   const p = findPlayer(s.name);
-  if (!p) return;
+  if (!p) { done(); return; }
   const up = s.dir === 'up';
   const before = effRarity(p, s.prev);
   const after = effRarity(p, s.level);
+  const oldStats = effPlayer(p, { level: s.prev });
+  const newStats = effPlayer(p, { level: s.level });
+  const stat = (label, key) => `<div class="lt-stat"><span>${label}</span><b>${oldStats[key]}</b><i>→</i><b>${newStats[key]}</b></div>`;
   const box = document.createElement('div');
   box.className = 'level-toast';
   box.innerHTML = `
@@ -415,7 +500,8 @@ function renderLevelToast(s) {
     <div class="lt-title ${up ? 'up' : 'down'}">${up ? '⬆ Level Up!' : '⬇ De-Ranked'}</div>
     <div class="lt-sub">${p.name}</div>
     <div class="lt-line">${RARITY_LABEL[before]} → ${RARITY_LABEL[after]} · Lv ${s.prev} → ${s.level}</div>
-    <div class="lt-foot">${up ? 'Stats forged +' + LEVEL_STEP + ' · W/L reset' : 'Dishonor bleeds stats back to base'}</div>`;
+    <div class="lt-stats">${stat('Power', 'power')}${stat('Cunning', 'cunning')}${stat('Arcana', 'arcana')}</div>
+    <div class="lt-foot">${up ? 'Stats forged · XP threshold reached' : 'XP loss pulls stats back toward base'} · Tap anywhere to continue</div>`;
   const cardWrap = document.createElement('div');
   cardWrap.className = 'lt-card';
   cardWrap.appendChild(buildCard({
@@ -427,7 +513,13 @@ function renderLevelToast(s) {
   void box.offsetWidth;
   box.classList.add('pop');
   if (up && typeof burstReward === 'function') burstReward(box);
-  setTimeout(() => box.remove(), 2400);
+  let closed = false;
+  box.addEventListener('click', () => {
+    if (closed) return;
+    closed = true;
+    box.classList.remove('pop');
+    setTimeout(() => { box.remove(); done(); }, 200);
+  });
 }
 
 /* The crown jewel — the most valuable card in the whole collection.
@@ -492,17 +584,19 @@ function renderCollection() {
     grid.className = 'album-grid';
     entries.forEach(({ o, p }, i) => {
       const wrap = document.createElement('div');
-      wrap.className = 'collect-wrap' + (jewel && jewel.o.id === o.id ? ' jewel-card' : '');
+      wrap.className = 'collect-wrap' + (jewel && jewel.o.id === o.id ? ' jewel-card' : '') + (o.favorite ? ' favorite-card' : '');
+      if (o.favorite) {
+        const marker = document.createElement('span');
+        marker.className = 'favorite-mark';
+        marker.textContent = '★';
+        marker.title = 'Favorite card';
+        marker.setAttribute('aria-label', 'Favorite card');
+        wrap.appendChild(marker);
+      }
       const card = buildCard({ ...effPlayer(p, o), rec: o }, 'collect-card', true);
       card.addEventListener('click', () => openCardView(o.id));
       card.style.setProperty('--d', (((ri + i) % 8) * .07) + 's');
-      const val = cardValue(p, o);
-      const sell = document.createElement('button');
-      sell.className = 'sell-btn' + (o.grading ? ' disabled' : '');
-      sell.innerHTML = `Sell · ${coin()}<span class="coin">${val}</span>`;
-      sell.addEventListener('click', () => sellCard(o.id));
       wrap.appendChild(card);
-      wrap.appendChild(sell);
       grid.appendChild(wrap);
     });
     sec.appendChild(grid);
@@ -520,6 +614,12 @@ function renderCollection() {
 
   $('#count').innerHTML = `<b>${state.owned.length}</b> / ${MAX_HOARD} album slots filled
     <span class="cap${state.owned.length >= MAX_HOARD ? ' full' : ''}"><i style="--fill:${Math.round(state.owned.length / MAX_HOARD * 100)}%"></i></span>`;
+  const sellUnfavBtn = $('#sellUnfavBtn');
+  if (sellUnfavBtn) {
+    const count = nonFavoriteSellables().length;
+    sellUnfavBtn.disabled = count === 0;
+    sellUnfavBtn.textContent = count ? `Sell ${count} Non-Favorite${count === 1 ? '' : 's'}` : 'No Non-Favorites';
+  }
   const jl = $('#jewelLine');
   if (jewel) {
     jl.innerHTML = `Crown Jewel · <b>${jewel.p.name}</b> · ${jewel.o.wins}W ${jewel.o.losses}L · ${coin()}${jewel.v}`;
@@ -537,8 +637,10 @@ function renderCollection() {
    fate: let it go, sell it, or trade it in against an owned card.
    ============================================================ */
 let overflowQueue = [];
+let overflowActionBusy = false;
 function resolveHoardOverflow(items, onDone) {
   overflowQueue = items.slice();
+  overflowActionBusy = false;
   processOverflowItem(onDone);
 }
 function closeOverflow() {
@@ -552,6 +654,7 @@ function processOverflowItem(onDone) {
   showOverflowCard(next, onDone);
 }
 function showOverflowCard(item, onDone) {
+  overflowActionBusy = false;
   const { player, instance } = item;
   const val = cardValue(player, instance);
   const box = document.createElement('div');
@@ -577,6 +680,8 @@ function showOverflowCard(item, onDone) {
   requestAnimationFrame(() => box.classList.add('pop'));
 }
 function overflowSell(item, onDone) {
+  if (overflowActionBusy) return;
+  overflowActionBusy = true;
   closeOverflow();
   const val = cardValue(item.player, item.instance);
   state.coins += val;
@@ -586,6 +691,8 @@ function overflowSell(item, onDone) {
   processOverflowItem(onDone);
 }
 function overflowCancel(item, onDone) {
+  if (overflowActionBusy) return;
+  overflowActionBusy = true;
   closeOverflow();
   flash(`${item.instance.name} slips away — the page stays full.`);
   saveState();
@@ -594,13 +701,22 @@ function overflowCancel(item, onDone) {
 /* Give up one of your own cards: it's sold for its value, and the new
    pull takes its slot on the page. */
 function overflowTradeWith(o, item, onDone) {
+  if (overflowActionBusy) return;
+  const current = state.owned.find(x => x.id === o.id);
+  if (!current || current.grading) {
+    flash('That card is no longer available for the trade.');
+    return;
+  }
+  overflowActionBusy = true;
   closeOverflow();
-  const val = cardValue(findPlayer(o.name), o);
+  const p = findPlayer(current.name);
+  if (!p) { overflowActionBusy = false; processOverflowItem(onDone); return; }
+  const val = cardValue(p, current);
   state.coins += val;
-  state.owned = state.owned.filter(x => x.id !== o.id);
+  state.owned = state.owned.filter(x => x.id !== current.id);
   state.owned.push(item.instance);
   updateWallet();
-  flash(`Traded — ${o.name} sold for ${coin()}${val}, ${item.instance.name} joins the page.`);
+  flash(`Traded — ${current.name} sold for ${coin()}${val}, ${item.instance.name} joins the page.`);
   saveState();
   processOverflowItem(onDone);
 }
@@ -735,7 +851,7 @@ function openCardView(id) {
   if (!o) return;
   const p = findPlayer(o.name);
   if (!p) return;
-  showCardInspect(p, o, { sellable: true, gradable: !o.graded });
+  showCardInspect(p, o, { sellable: true, gradable: !o.graded, favoriteable: true });
 }
 /* A card on the Hall of Fame isn't yours — inspect it read-only. */
 function openHallCardView(entry) {
@@ -746,6 +862,7 @@ function showCardInspect(p, o, opts) {
   const e = effPlayer(p, o);
   const lvl = o.level || 1;
   const val = cardValue(p, o);
+  const progress = xpProgress(o);
   const box = document.createElement('div');
   box.className = 'card-inspect';
   const wrap = document.createElement('div');
@@ -771,6 +888,7 @@ function showCardInspect(p, o, opts) {
            <span class="cg-info"><b>Condition unknown</b><span>Pay ${coin()}<b>${GRADE_FEE}</b> and the lab reveals its hidden 1–10 grade.</span></span>
          </div>`;
   const actions = [];
+  if (opts.favoriteable) actions.push(`<button id="ciFavorite" class="favorite-toggle${o.favorite ? ' active' : ''}" aria-pressed="${!!o.favorite}">${o.favorite ? '★ Favorited' : '☆ Favorite'}</button>`);
   if (opts.sellable && !o.grading) actions.push(`<button id="ciSell">Sell</button>`);
   if (opts.gradable && !o.grading) actions.push(`<button id="ciGrade">Send to Lab</button>`);
   actions.push(`<button class="primary" id="ciClose">Done</button>`);
@@ -780,7 +898,7 @@ function showCardInspect(p, o, opts) {
       <div class="ci-head">
         <span class="ci-rarity rare-${e.rarity}">${RARITY_LABEL[e.rarity]}</span>
         ${isFirstEdition(o.serial) ? `<span class="ci-firsted">★ 1st Edition</span>` : ''}
-        <span class="ci-lvl">Lv ${lvl}</span>
+       <span class="ci-lvl">Lv ${lvl} · XP ${progress.current}/${progress.needed}</span>
         <span class="ci-role">${e.role} · ${e.realm}</span>
       </div>
       <div class="ci-stats">
@@ -807,6 +925,15 @@ function showCardInspect(p, o, opts) {
   };
   box.addEventListener('click', ev => { if (ev.target === box) close(); });
   wrap.querySelector('#ciClose').addEventListener('click', close);
+  const favoriteBtn = wrap.querySelector('#ciFavorite');
+  if (favoriteBtn) favoriteBtn.addEventListener('click', () => {
+    o.favorite = !o.favorite;
+    saveState();
+    renderCollection();
+    favoriteBtn.classList.toggle('active', o.favorite);
+    favoriteBtn.setAttribute('aria-pressed', String(o.favorite));
+    favoriteBtn.textContent = o.favorite ? '★ Favorited' : '☆ Favorite';
+  });
   const sellBtn = wrap.querySelector('#ciSell');
   if (sellBtn) sellBtn.addEventListener('click', () => { close(); sellCard(o.id); });
   const gradeBtn = wrap.querySelector('#ciGrade');
@@ -854,7 +981,8 @@ function cardFront(p) {
         ? `<span class="grade-chip g" style="--gc:${GRADE_COLOR[rec.grade] || '#c9d3dd'}" title="${GRADE_FULL[rec.grade]}">${rec.grade}<em>${GRADE_LABEL[rec.grade]}</em></span>`
         : `<span class="grade-chip ungraded" title="Condition unknown — submit to the Grading Lab">?</span>`
     : `<span class="grade-chip ungraded" title="Condition unknown — submit to the Grading Lab">?</span>`;
-  const serial = `<span class="serial${rec && rec.serial <= 10 ? ' hot' : ''}">#${String(rec && rec.serial ? rec.serial : 0).padStart(4, '0')}</span>`;
+   const serial = `<span class="serial${rec && rec.serial <= 10 ? ' hot' : ''}">#${String(rec && rec.serial ? rec.serial : 0).padStart(4, '0')}</span>`;
+  const elem = elementInfo(p.element || (rec && rec.element));
   const firstEd = rec && isFirstEdition(rec.serial)
     ? `<span class="firsted" title="1st Edition print run">1st Edition</span>`
     : '';
@@ -873,6 +1001,7 @@ function cardFront(p) {
     <div class="plate">
       <div class="nm"><h3>${p.name}</h3><span class="stars">${stars}</span></div>
       <div class="role"><b>${p.role}</b><span>${p.realm}</span></div>
+      <div class="element-tag" title="${elem.label}">${elem.icon} ${elem.label}</div>
     </div>
     <div class="stat-panel">
       ${chip('Power', p.power)}
@@ -892,6 +1021,17 @@ function buildCard(p, cls = '', noFlip = false) {
   const div = document.createElement('div');
   div.className = 'flip ' + cls;
   div.innerHTML = `<div class="flip-inner">${cardFront(p)}${cardBack()}</div>`;
+  if (p.rec && p.rec.grading) {
+    const status = document.createElement('span');
+    status.className = 'card-status grading-status';
+    status.textContent = 'In Grading';
+    status.title = 'This card cannot be played or sold until grading is complete.';
+    div.classList.add('has-card-status');
+    div.appendChild(status);
+  }
   if (!noFlip) div.addEventListener('click', () => div.querySelector('.flip-inner').classList.toggle('flipped'));
   return div;
 }
+
+const sellUnfavBtn = $('#sellUnfavBtn');
+if (sellUnfavBtn) sellUnfavBtn.addEventListener('click', sellNonFavorites);
