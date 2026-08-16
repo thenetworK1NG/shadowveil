@@ -714,10 +714,13 @@
   .hall .sub { text-align: center; color: var(--muted); font-size: 11px; letter-spacing: 2px; margin-top: -8px; }
   #leaderboard { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
   .lb-row {
-    display: flex; align-items: center; gap: 16px;
+    display: flex; align-items: center; gap: 16px; cursor: pointer;
     background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.015));
     border: 1px solid rgba(255,255,255,.1); border-radius: 18px; padding: 14px 18px;
+    transition: transform .15s ease, border-color .15s ease, background .15s ease;
+    touch-action: manipulation;
   }
+  .lb-row:hover { transform: translateY(-1px); border-color: rgba(232,193,90,.5); }
   .lb-row.first {
     border-color: rgba(232,193,90,.65);
     background: linear-gradient(180deg, rgba(232,193,90,.16), rgba(232,193,90,.04));
@@ -730,16 +733,25 @@
     border-radius: 50%;
   }
   .lb-rank.gold { color: var(--gold); border-color: var(--gold); box-shadow: 0 0 16px rgba(232,193,90,.4); }
-  .lb-card .lb-draw { width: 84px; height: auto; aspect-ratio: 200 / 290; }
-  .lb-info { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-  .lb-name { font-size: 14px; letter-spacing: 1px; color: var(--cream); font-weight: 600; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-  .lb-firsted { color: var(--gold); font-size: 9px; letter-spacing: 2px; }
-  .lb-tags { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-  .lb-serial { font-size: 10px; letter-spacing: 1.5px; color: var(--muted); }
-  .lb-serial.hot { color: var(--gold); }
-  .lb-realm { font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); border: 1px solid rgba(255,255,255,.15); border-radius: 999px; padding: 3px 9px; }
-  .lb-val { font-size: 12px; letter-spacing: 1.5px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
-  .lb-val b { color: var(--gold); font-size: 15px; letter-spacing: 1px; }
+  .lb-info { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .lb-tier {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 9px; letter-spacing: 3px; text-transform: uppercase; color: var(--muted);
+  }
+  .lb-tier::before {
+    content: ''; width: 8px; height: 8px; border-radius: 50%;
+    background: var(--rar, var(--gold)); box-shadow: 0 0 10px var(--rar, rgba(232,193,90,.7));
+  }
+  .lb-tier.rare-bronze  { --rar: #b0723a; }
+  .lb-tier.rare-silver  { --rar: #c9d3dd; }
+  .lb-tier.rare-gold    { --rar: #e8c15a; }
+  .lb-tier.rare-diamond { --rar: #7fe7ff; }
+  .lb-name { font-size: 15px; letter-spacing: .5px; color: var(--cream); font-weight: 600; }
+  .lb-val {
+    margin-left: auto; flex: none; font-size: 12px; letter-spacing: 1.5px;
+    color: var(--muted); display: flex; align-items: center; gap: 6px;
+  }
+  .lb-val b { color: var(--gold); font-size: 16px; letter-spacing: 1px; }
 
   /* ---- full-album overflow: sell / trade / let it go ---- */
   .ovf-card { display: flex; justify-content: center; margin-bottom: 22px; }

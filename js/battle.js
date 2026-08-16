@@ -124,16 +124,28 @@ function renderSlots() {
 
 function buildBotSquad() {
   const used = new Set(playerSquad.map(p => p.name));
-  const take = (fit) => {
+  /* The enemy scopes your coven and drafts to match it — for each slot
+     it hunts the card whose OVR sits closest to your pick, so it never
+     fields a random bronze against your crown jewel. */
+  const targets = playerSquad.map(p => ovr(p));
+  const take = (i, fit) => {
+    let best = null, bestDist = Infinity;
+    for (let t = 0; t < 300; t++) {
+      const c = pickCard();
+      if (!fit(c) || used.has(c.name)) continue;
+      const dist = Math.abs(ovr(c) - targets[i]);
+      if (dist < bestDist) { bestDist = dist; best = c; }
+    }
+    if (best) { used.add(best.name); return best; }
     for (let t = 0; t < 300; t++) {
       const c = pickCard();
       if (fit(c) && !used.has(c.name)) { used.add(c.name); return c; }
     }
     return null;
   };
-  const brute = take(p => slotFit(p).includes(0));
-  const stalker = take(p => slotFit(p).includes(1));
-  const mystic = take(p => slotFit(p).includes(2));
+  const brute = take(0, p => slotFit(p).includes(0));
+  const stalker = take(1, p => slotFit(p).includes(1));
+  const mystic = take(2, p => slotFit(p).includes(2));
   return [brute, stalker, mystic].filter(Boolean);
 }
 
@@ -146,15 +158,28 @@ function battleArtifacts(list, cap) {
     .slice(0, cap);
 }
 function rollBotArtifacts() {
-  const arts = [];
-  const n = Math.floor(Math.random() * (BATTLE_ART_CAP + 1)); // 0-4 relics carried
-  for (let i = 0; i < n; i++) {
-    const a = ARTIFACTS[Math.floor(Math.random() * ARTIFACTS.length)];
-    const slot = arts.find(x => x.name === a.name);
-    if (slot) slot.count = Math.min(ARTIFACT_STACK, slot.count + 1);
-    else if (arts.length < BATTLE_ART_CAP) arts.push({ name: a.name, count: 1 });
+  /* The enemy packs a real loadout — mostly 2-4 relics, heavily
+     weighted toward the legendary ones. Rare relics come stacked so a
+     big duel can hinge on a saved drain or stun. */
+  const r = Math.random();
+  const n = r < 0.12 ? 0 : r < 0.3 ? 1 : 2 + Math.floor(Math.random() * 3);
+  const pool = [];
+  ARTIFACTS.forEach(a => {
+    for (let i = 0; i < (a.tier === 'rare' ? 24 : 10); i++) pool.push(a);
+  });
+  const names = [];
+  let guard = 0;
+  while (names.length < n && guard++ < 40) {
+    const a = pool[Math.floor(Math.random() * pool.length)];
+    if (!names.includes(a.name)) names.push(a.name);
   }
-  return arts;
+  return names.map(name => {
+    const a = findArtifact(name);
+    const count = a.tier === 'rare'
+      ? 1 + Math.floor(Math.random() * Math.min(2, ARTIFACT_STACK - 1))
+      : 1;
+    return { name, count };
+  });
 }
 function showBotArtifacts() {
   const old = document.getElementById('botArtRow');
@@ -330,9 +355,33 @@ function startFight() {
       return;
     }
     const usable = botArtifacts.filter(x => x.count > 0);
-    if (usable.length && Math.random() < .45) {
-      const slot = usable[Math.floor(Math.random() * usable.length)];
-      const art = findArtifact(slot.name);
+    const pAvg = ovr(pc) * 1.0;
+    const bAvg = ovr(bc) * 1.0;
+    const drainDmg = ovr(bc) * 1.4;
+    const pMax = hpOf(pc), bMax = hpOf(bc);
+    const playerBuffed = pMult > 1;
+    const playerKills = pAvg >= bcHP;         // player's next hit can finish us
+    const botKills = bAvg >= pcHP && !pShield; // a plain attack ends it
+
+    const attack = () => {
+      let dmg = ovr(bc) * (0.85 + Math.random() * .3);
+      if (pShield) {
+        pShield = false;
+        roundLog.innerHTML = `🛡️ Your <b>${pc.name}</b> deflects the enemy's blow — no damage.`;
+        damageNum(pEl, 0, false);
+      } else {
+        if (bMult > 1) { dmg *= bMult; bMult = 1; }
+        pcHP -= dmg;
+        setHP(pEl, pcHP, hpOf(pc));
+        damageNum(pEl, dmg, false);
+        roundLog.innerHTML = `💥 <b>${bc.name}</b> hits <b>${pc.name}</b> for <b>${Math.round(dmg)}</b> — ${Math.max(0, Math.round(pcHP))} HP left`;
+      }
+      bRoundDmg += dmg; bScore += dmg;
+      setScore(pScore, bScore);
+      if (pcHP <= 0) { endRound(false, pc, bc, pEl, bEl); return; }
+      setTimeout(() => playerTurn(pc, bc, pEl, bEl), 1150);
+    };
+    const useArt = (slot, art) => {
       slot.count--;
       relicPopup(art, 'bot');
       if (art.effect === 'drain') {
@@ -350,24 +399,63 @@ function startFight() {
         roundLog.innerHTML = `🌀 The enemy unleashes <b>${art.name}</b> ${art.icon} — ${art.desc}`;
       }
       setTimeout(() => playerTurn(pc, bc, pEl, bEl), 1100);
-      return;
+    };
+
+    /* The enemy reads the duel and spends its relics with intent:
+       kill with the sure thing, deflect buffed hits, heal out of
+       reach of death, and only sacrifice a turn when the buff pays. */
+    const decide = () => {
+      const has = {}, slots = {};
+      usable.forEach(x => {
+        const a = findArtifact(x.name);
+        if (!a) return;
+        has[a.effect] = true;
+        slots[a.effect] = x;
+      });
+      if (bMult > 1) return 'attack';           // a loaded buff must be unleashed
+      if (botKills) return 'attack';            // take the sure kill
+      if (has.drain && drainDmg >= pcHP && !pShield) return slots.drain;
+
+      // deflect the player's buffed hit entirely — no heal matches that
+      if (has.shield && playerBuffed) return slots.shield;
+      // top up when one hit from death or badly hurt
+      if (has.heal && bcHP < bMax * 0.85 && (playerKills || bcHP < bMax * 0.4)) return slots.heal;
+      // or when a plain lethal hit is coming
+      if (has.shield && playerKills) return slots.shield;
+
+      // stun buys a free turn — save ourselves or set up the kill
+      if (has.stun && (playerKills || (bAvg * 2 >= pcHP && !pShield))) return slots.stun;
+
+      // sacrifice this turn to double/triple the next, only if the
+      // player survives an attack and we survive their counter —
+      // and never while their ward is up, or the buff goes to waste
+      if (has.triple && !pShield && pcHP > bAvg && bcHP > pAvg * 1.15) return slots.triple;
+      if (has.double && !pShield && pcHP > bAvg * 1.5 && bcHP > pAvg * 1.15) return slots.double;
+
+      // sustain: drain hurts them and tops us up
+      if (has.drain && bcHP < bMax * 0.65) return slots.drain;
+
+      return 'attack';
+    };
+
+    let plan = decide();
+    /* a sliver of chaos so it never reads as scripted — the enemy
+       sometimes leans on a relic even when a plain attack would do,
+       but never wastes one. */
+    if (plan === 'attack' && Math.random() < 0.15) {
+      const wild = usable.filter(x => {
+        const a = findArtifact(x.name);
+        if (!a) return false;
+        if (botKills) return false;                                  // don't throw away the kill
+        if (a.effect === 'heal' && bcHP > bMax * 0.6) return false;
+        if (a.effect === 'shield' && !playerBuffed && !playerKills) return false;
+        if ((a.effect === 'double' || a.effect === 'triple') && (bMult > 1 || pShield || pcHP <= bAvg * 1.2)) return false;
+        return true;
+      });
+      if (wild.length) plan = wild[Math.floor(Math.random() * wild.length)];
     }
-    let dmg = ovr(bc) * (0.85 + Math.random() * .3);
-    if (pShield) {
-      pShield = false;
-      roundLog.innerHTML = `🛡️ Your <b>${pc.name}</b> deflects the enemy's blow — no damage.`;
-      damageNum(pEl, 0, false);
-    } else {
-      if (bMult > 1) { dmg *= bMult; bMult = 1; }
-      pcHP -= dmg;
-      setHP(pEl, pcHP, hpOf(pc));
-      damageNum(pEl, dmg, false);
-      roundLog.innerHTML = `💥 <b>${bc.name}</b> hits <b>${pc.name}</b> for <b>${Math.round(dmg)}</b> — ${Math.max(0, Math.round(pcHP))} HP left`;
-    }
-    bRoundDmg += dmg; bScore += dmg;
-    setScore(pScore, bScore);
-    if (pcHP <= 0) { endRound(false, pc, bc, pEl, bEl); return; }
-    setTimeout(() => playerTurn(pc, bc, pEl, bEl), 1150);
+    if (plan === 'attack') return attack();
+    return useArt(plan, findArtifact(plan.name));
   }
 
   function endRound(pWin, pc, bc, pEl, bEl) {

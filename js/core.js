@@ -663,6 +663,7 @@ function publishGallery() {
     id: e.o.id, name: e.o.name, serial: e.o.serial,
     grade: e.o.grade, graded: e.o.graded, grading: !!e.o.grading,
     firstEd: !!e.o.firstEd, level: e.o.level || 1,
+    wins: e.o.wins || 0, losses: e.o.losses || 0,
   }));
   const json = JSON.stringify(payload);
   if (json === lastGalleryPub) return;
@@ -708,20 +709,14 @@ function renderLeaderboard() {
     const { o, p } = entry;
     const row = document.createElement('div');
     row.className = 'lb-row' + (i === 0 ? ' first' : '');
-    const gradeChip = o.grading
-      ? `<span class="grade-chip lab" title="In the Grading Lab">?</span>`
-      : o.graded
-        ? `<span class="grade-chip g" style="--gc:${GRADE_COLOR[o.grade] || '#c9d3dd'}">${o.grade}<em>${GRADE_LABEL[o.grade]}</em></span>`
-        : `<span class="grade-chip ungraded">?</span>`;
     row.innerHTML = `
       <span class="lb-rank${i === 0 ? ' gold' : ''}">${medals[i]}</span>
-      <div class="lb-card"></div>
       <div class="lb-info">
-        <div class="lb-name">${p.name}${o.firstEd ? '<span class="lb-firsted">★ 1st Ed</span>' : ''}</div>
-        <div class="lb-tags">${gradeChip}<span class="lb-serial${o.serial && o.serial <= 10 ? ' hot' : ''}">#${String(o.serial || 0).padStart(4, '0')}</span><span class="lb-realm">${p.realm}</span></div>
-        <div class="lb-val">${coin()}<b>${entry.v}</b></div>
-      </div>`;
-    row.querySelector('.lb-card').appendChild(buildCard({ ...effPlayer(p, o), rec: o }, 'lb-draw', true));
+        <span class="lb-tier rare-${p.rarity}">${RARITY_LABEL[p.rarity]}</span>
+        <span class="lb-name">${p.name}</span>
+      </div>
+      <span class="lb-val">${coin()}<b>${entry.v}</b></span>`;
+    row.addEventListener('click', () => openHallCardView(entry));
     host.appendChild(row);
   });
 }
@@ -732,6 +727,14 @@ function openCardView(id) {
   if (!o) return;
   const p = findPlayer(o.name);
   if (!p) return;
+  showCardInspect(p, o, { sellable: true, gradable: !o.graded });
+}
+/* A card on the Hall of Fame isn't yours — inspect it read-only. */
+function openHallCardView(entry) {
+  if (!entry || !entry.p || !entry.o) return;
+  showCardInspect(entry.p, entry.o, { sellable: false, gradable: false });
+}
+function showCardInspect(p, o, opts) {
   const e = effPlayer(p, o);
   const lvl = o.level || 1;
   const val = cardValue(p, o);
@@ -760,8 +763,8 @@ function openCardView(id) {
            <span class="cg-info"><b>Condition unknown</b><span>Pay ${coin()}<b>${GRADE_FEE}</b> and the lab reveals its hidden 1–10 grade.</span></span>
          </div>`;
   const actions = [];
-  if (!o.grading) actions.push(`<button id="ciSell">Sell</button>`);
-  if (!o.grading && !o.graded) actions.push(`<button id="ciGrade">Send to Lab</button>`);
+  if (opts.sellable && !o.grading) actions.push(`<button id="ciSell">Sell</button>`);
+  if (opts.gradable && !o.grading) actions.push(`<button id="ciGrade">Send to Lab</button>`);
   actions.push(`<button class="primary" id="ciClose">Done</button>`);
   wrap.innerHTML = `
     <div class="ci-card"></div>
@@ -779,7 +782,7 @@ function openCardView(id) {
       </div>
       <div class="ci-meta">
         <span class="ci-ovr">OVR <b>${ovr(e)}</b></span>
-        <span class="ci-rec">#${String(o.serial).padStart(4, '0')} · W <b>${o.wins}</b> L <b>${o.losses}</b></span>
+        <span class="ci-rec">#${String(o.serial).padStart(4, '0')} · W <b>${o.wins || 0}</b> L <b>${o.losses || 0}</b></span>
         <span class="ci-val">${coin()}<b>${val}</b></span>
       </div>
       <div class="ci-grade-row">${gradeBlock}</div>
