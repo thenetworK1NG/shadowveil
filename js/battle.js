@@ -5,7 +5,10 @@
 const pSquad = $('#pSquad'), bSquad = $('#bSquad');
 const roundLog = $('#roundLog'), resultBanner = $('#resultBanner');
 const battlePit = $('#battlePit'), picker = $('#picker'), squadSlots = $('#squadSlots');
-let candidatePool = [], picked = [null, null, null], playerSquad = [], botSquad = [], battleActive = false;
+const battleHud = $('#battleHud'), youBar = $('#youBar'), themBar = $('#themBar'), youPts = $('#youPts'), themPts = $('#themPts');
+const roundTicker = $('#roundTicker'), rewardBox = $('#rewardBox'), rewardGlow = $('#rewardGlow');
+const rewardTitle = $('#rewardTitle'), rewardSub = $('#rewardSub'), rewardCard = $('#rewardCard'), rewardFoot = $('#rewardFoot');
+let candidatePool = [], picked = [null, null, null], playerSquad = [], botSquad = [], battleActive = false, botArtifacts = [];
 
 const SLOT_ROLES = ['Brute', 'Stalker', 'Mystic'];
 const ROLE_ICONS = ['💪', '🌙', '🔮'];
@@ -21,18 +24,46 @@ function addLoan(qualify) {
     if (qualify(c) && !candidatePool.some(x => x.name === c.name)) { candidatePool.push(c); return; }
   }
 }
+
+/* ---- relic played popup: the artifact card flashes up on screen ---- */
+function relicPopup(art, who) {
+  const pop = document.createElement('div');
+  pop.className = 'relic-pop ' + (who === 'player' ? 'yours' : 'theirs');
+  const tag = document.createElement('span');
+  tag.className = 'rp-tag';
+  tag.textContent = who === 'player' ? '✦ YOU PLAYED' : '☠ THE ENEMY PLAYED';
+  pop.appendChild(tag);
+  pop.appendChild(buildArtifactTile(art, 'pop'));
+  document.body.appendChild(pop);
+  void pop.offsetWidth;
+  pop.classList.add('in');
+  setTimeout(() => {
+    pop.classList.add('out');
+    setTimeout(() => pop.remove(), 420);
+  }, 1250);
+}
 function openPicker() {
   battleActive = false;
+  document.body.classList.remove('in-fight');
+  document.getElementById('squadSlots').classList.remove('hidden');
   picked = [null, null, null];
   $('#statsPanel').classList.add('hidden');
   resultBanner.classList.add('hidden');
   roundLog.textContent = '';
   battlePit.classList.add('hidden');
+  battleHud.classList.add('hidden');
+  rewardBox.classList.add('hidden');
   document.querySelector('.picker-wrap').classList.remove('hidden');
-  $('#arenaSub').textContent = 'Pick a brute, a stalker and a mystic — lose, and the enemy walks off with your crown jewel.';
-  // candidates: every bound creature, topped up with loaners so a legal coven is always possible
-  const owned = state.owned.map(o => findPlayer(o.name)).filter(Boolean).sort((a, b) => ovr(b) - ovr(a));
-  candidatePool = [...owned];
+  $('#arenaBack').classList.remove('hidden');
+  $('#arenaSub').textContent = 'Pick a brute, a stalker and a mystic. Fights are turn-based — burn your one-use relics mid-duel. Lose, and the enemy walks off with your crown jewel.';
+  // candidates: every bound creature, topped up with loaners so a legal coven is always possible.
+  // duplicate copies of the same creature collapse into their best instance for the arena.
+  const seen = new Set();
+  candidatePool = state.owned
+    .map(o => { const e = effPlayer(findPlayer(o.name), o); if (e) e.rec = o; return e; })
+    .filter(Boolean)
+    .sort((a, b) => ovr(b) - ovr(a))
+    .filter(p => { if (seen.has(p.name)) return false; seen.add(p.name); return true; });
   while (candidatePool.length < 3) {
     const c = pickCard();
     if (!candidatePool.some(x => x.name === c.name)) candidatePool.push(c);
@@ -106,42 +137,278 @@ function buildBotSquad() {
   return [brute, stalker, mystic].filter(Boolean);
 }
 
+/* The best BATTLE_ART_CAP relic stacks come to the fight — a stack
+   counts as one relic whether it holds one copy or a full stack. */
+function battleArtifacts(list, cap) {
+  return (list || [])
+    .slice()
+    .sort((a, b) => (findArtifact(b.name) ? findArtifact(b.name).price : 0) - (findArtifact(a.name) ? findArtifact(a.name).price : 0))
+    .slice(0, cap);
+}
+function rollBotArtifacts() {
+  const arts = [];
+  const n = Math.floor(Math.random() * (BATTLE_ART_CAP + 1)); // 0-4 relics carried
+  for (let i = 0; i < n; i++) {
+    const a = ARTIFACTS[Math.floor(Math.random() * ARTIFACTS.length)];
+    const slot = arts.find(x => x.name === a.name);
+    if (slot) slot.count = Math.min(ARTIFACT_STACK, slot.count + 1);
+    else if (arts.length < BATTLE_ART_CAP) arts.push({ name: a.name, count: 1 });
+  }
+  return arts;
+}
+function showBotArtifacts() {
+  const old = document.getElementById('botArtRow');
+  if (old) old.remove();
+  if (!botArtifacts || !botArtifacts.length) return;
+  const row = document.createElement('div');
+  row.id = 'botArtRow';
+  row.className = 'bot-art-row';
+  row.innerHTML = '<span class="bot-art-label">Relics</span>' + botArtifacts.map(a => {
+    const art = findArtifact(a.name);
+    return `<span class="bot-art" title="${art.name} — ${art.desc}">${art.icon}<b>×${a.count}</b></span>`;
+  }).join('');
+  bSquad.parentElement.appendChild(row);
+}
+
+/* One duel = one of your creatures against one of theirs, decided
+   turn by turn. On your turn: attack, or burn a one-use artifact. */
 function startFight() {
   if (battleActive) return;
   battleActive = true;
+  document.body.classList.add('in-fight');
+  document.getElementById('squadSlots').classList.add('hidden');
   playerSquad = [0, 1, 2].map(i => candidatePool.find(x => x.name === picked[i]));
   botSquad = buildBotSquad();
+  botArtifacts = rollBotArtifacts();
   document.querySelector('.picker-wrap').classList.add('hidden');
-  $('#arenaSub').textContent = 'The hunt is on — three rounds decide it.';
+  $('#arenaBack').classList.add('hidden');
+  $('#arenaSub').textContent = 'Three duels, decided turn by turn. Burn your relics to tip the scales — each side brings at most ' + BATTLE_ART_CAP + ' into battle.';
+  battleHud.classList.remove('hidden');
+  setScore(0, 0);
+  $$('#roundTicker span').forEach((s, i) => { s.className = ''; s.dataset.round = i; });
   battlePit.classList.remove('hidden');
   pSquad.innerHTML = ''; bSquad.innerHTML = '';
   playerSquad.forEach((p, i) => { const c = buildCard({ ...p }, 'b-card'); c.id = 'pc' + i; pSquad.appendChild(c); });
   botSquad.forEach((p, i) => { const c = buildCard({ ...p }, 'b-card'); c.id = 'bc' + i; bSquad.appendChild(c); });
+  showBotArtifacts();
   roundLog.textContent = 'The enemy conjures its coven…';
   $('#arenaActions').innerHTML = '';
+
   let pScore = 0, bScore = 0, round = 0;
+  let pcHP = 0, bcHP = 0;
+  let pMult = 1, bMult = 1, pShield = false, bShield = false, pStun = false, bStun = false;
+  let pRoundDmg = 0, bRoundDmg = 0;
   const rounds = [];
+  const hpOf = p => Math.round(60 + ovr(p) * 1.8);
+
+  function setHP(el, hp, max) {
+    const pct = Math.max(0, Math.min(100, hp / max * 100));
+    const bar = el.querySelector('.hp-bar');
+    if (!bar) return;
+    bar.querySelector('i').style.width = pct + '%';
+    bar.querySelector('i').classList.toggle('low', hp / max < .35);
+    bar.querySelector('b').textContent = Math.max(0, Math.round(hp));
+  }
+  function disableActs(container) {
+    [...container.querySelectorAll('button')].forEach(b => { b.disabled = true; b.style.opacity = .5; });
+  }
 
   function roundStep() {
+    if (!battleActive) return;
     if (round >= 3) { finishMatch(rounds, pScore, bScore); return; }
     const pc = playerSquad[round], bc = botSquad[round];
     const pEl = $('#pc' + round), bEl = $('#bc' + round);
-    pEl.classList.add('fight'); bEl.classList.add('fight');
-    roundLog.innerHTML = `Round ${round + 1}: <b>${pc.name}</b> vs <b>${bc.name}</b>…`;
-    setTimeout(() => {
-      pEl.classList.remove('fight'); bEl.classList.remove('fight');
-      const ps = ovr(pc) * (0.85 + Math.random() * .3);
-      const bs = ovr(bc) * (0.85 + Math.random() * .3);
-      const pWin = ps > bs;
-      rounds.push({ pc, bc, ps, bs, pWin });
-      pScore += ps; bScore += bs;
-      pEl.classList.add(pWin ? 'round-win' : 'round-lose');
-      bEl.classList.add(pWin ? 'round-lose' : 'round-win');
-      roundLog.innerHTML = `Round ${round + 1}: <b>${pc.name}</b> ${ps.toFixed(0)} vs ${bs.toFixed(0)} <b>${bc.name}</b> — ${pWin ? 'you' : 'the enemy'} takes it`;
-      setTimeout(() => { round++; roundStep(); }, 1150);
-    }, 850);
+    const max = hpOf(pc);
+    pcHP = max; bcHP = hpOf(bc);
+    pMult = 1; bMult = 1; pShield = false; bShield = false; pStun = false; bStun = false;
+    pRoundDmg = 0; bRoundDmg = 0;
+    roundBanner(round + 1, pc, bc);
+    [pEl, bEl].forEach(el => {
+      if (!el.querySelector('.hp-bar')) {
+        const bar = document.createElement('div');
+        bar.className = 'hp-bar';
+        bar.innerHTML = '<i></i><b></b>';
+        el.appendChild(bar);
+      }
+    });
+    setHP(pEl, pcHP, max); setHP(bEl, bcHP, hpOf(bc));
+    roundLog.innerHTML = `Round ${round + 1}: <b>${pc.name}</b> vs <b>${bc.name}</b> — your move.`;
+    playerTurn(pc, bc, pEl, bEl);
+  }
+
+  function playerTurn(pc, bc, pEl, bEl) {
+    if (!battleActive) return;
+    if (pStun) {
+      pStun = false;
+      roundLog.innerHTML = '❄️ Frost binds your fighter — the turn slips away.';
+      setTimeout(() => botTurn(pc, bc, pEl, bEl), 1000);
+      return;
+    }
+    const acts = $('#arenaActions');
+    acts.innerHTML = `<button class="primary" id="atkBtn">⚔️ Attack</button>`;
+    const atk = $('#atkBtn');
+    atk.addEventListener('click', () => { disableActs(acts); playerAttack(pc, bc, pEl, bEl); });
+    (battleArtifacts(state.artifacts, BATTLE_ART_CAP)).forEach(a => {
+      const art = findArtifact(a.name);
+      if (!art) return;
+      const b = document.createElement('button');
+      b.className = 'art-btn tier-' + art.tier;
+      b.title = `${art.name} ×${a.count}`;
+      b.innerHTML = `<span class="at-ico">${art.icon}</span><span class="at-count">×${a.count}</span>`;
+      b.addEventListener('click', () => { disableActs(acts); useArtifactInBattle(art, pc, bc, pEl, bEl); });
+      acts.appendChild(b);
+    });
+  }
+
+  function playerAttack(pc, bc, pEl, bEl) {
+    if (!battleActive) return;
+    let dmg = ovr(pc) * (0.85 + Math.random() * .3);
+    if (bShield) {
+      bShield = false;
+      roundLog.innerHTML = `🛡️ <b>${bc.name}</b>'s ward deflects your blow — no damage.`;
+      damageNum(bEl, 0, true);
+    } else {
+      if (pMult > 1) { dmg *= pMult; pMult = 1; }
+      bcHP -= dmg;
+      setHP(bEl, bcHP, hpOf(bc));
+      damageNum(bEl, dmg, true);
+      roundLog.innerHTML = `⚔️ You strike <b>${bc.name}</b> for <b>${Math.round(dmg)}</b> — ${Math.max(0, Math.round(bcHP))} HP left`;
+    }
+    pRoundDmg += dmg; pScore += dmg;
+    setScore(pScore, bScore);
+    if (bcHP <= 0) { endRound(true, pc, bc, pEl, bEl); return; }
+    setTimeout(() => botTurn(pc, bc, pEl, bEl), 1150);
+  }
+
+  function useArtifactInBattle(art, pc, bc, pEl, bEl) {
+    if (!battleActive) return;
+    if (!spendArtifact(art.name)) return;
+    relicPopup(art, 'player');
+    if (art.effect === 'drain') {
+      const dmg = ovr(pc) * 1.4;
+      bcHP -= dmg;
+      pcHP = Math.min(hpOf(pc), pcHP + dmg * .5);
+      setHP(pEl, pcHP, hpOf(pc)); setHP(bEl, bcHP, hpOf(bc));
+      pRoundDmg += dmg; pScore += dmg;
+      damageNum(bEl, dmg, true);
+      setScore(pScore, bScore);
+      roundLog.innerHTML = `💀 <b>${art.name}</b> drains <b>${bc.name}</b> for <b>${Math.round(dmg)}</b> — you siphon health back.`;
+      if (bcHP <= 0) { endRound(true, pc, bc, pEl, bEl); return; }
+    } else {
+      applyArtifact(art, 'player', pc, bc, pEl, bEl);
+      roundLog.innerHTML = `🔮 You unleash <b>${art.name}</b> ${art.icon} — ${art.desc}`;
+    }
+    setTimeout(() => botTurn(pc, bc, pEl, bEl), 1100);
+  }
+
+  function applyArtifact(art, who, pc, bc, pEl, bEl) {
+    if (who === 'player') {
+      switch (art.effect) {
+        case 'double': pMult = 2; break;
+        case 'triple': pMult = 3; break;
+        case 'heal': pcHP = hpOf(pc); setHP(pEl, pcHP, hpOf(pc)); break;
+        case 'shield': pShield = true; break;
+        case 'stun': bStun = true; break;
+      }
+    } else {
+      switch (art.effect) {
+        case 'double': bMult = 2; break;
+        case 'triple': bMult = 3; break;
+        case 'heal': bcHP = hpOf(bc); setHP(bEl, bcHP, hpOf(bc)); break;
+        case 'shield': bShield = true; break;
+        case 'stun': pStun = true; break;
+      }
+    }
+  }
+
+  function botTurn(pc, bc, pEl, bEl) {
+    if (!battleActive) return;
+    if (bStun) {
+      bStun = false;
+      roundLog.innerHTML = `❄️ <b>${bc.name}</b> is frozen solid and skips its turn.`;
+      setTimeout(() => playerTurn(pc, bc, pEl, bEl), 1100);
+      return;
+    }
+    const usable = botArtifacts.filter(x => x.count > 0);
+    if (usable.length && Math.random() < .45) {
+      const slot = usable[Math.floor(Math.random() * usable.length)];
+      const art = findArtifact(slot.name);
+      slot.count--;
+      relicPopup(art, 'bot');
+      if (art.effect === 'drain') {
+        const dmg = ovr(bc) * 1.4;
+        pcHP -= dmg;
+        bcHP = Math.min(hpOf(bc), bcHP + dmg * .5);
+        setHP(pEl, pcHP, hpOf(pc)); setHP(bEl, bcHP, hpOf(bc));
+        bRoundDmg += dmg; bScore += dmg;
+        damageNum(pEl, dmg, false);
+        setScore(pScore, bScore);
+        roundLog.innerHTML = `💀 <b>${bc.name}</b> unleashes <b>${art.name}</b>, draining <b>${pc.name}</b> for <b>${Math.round(dmg)}</b>`;
+        if (pcHP <= 0) { endRound(false, pc, bc, pEl, bEl); return; }
+      } else {
+        applyArtifact(art, 'bot', pc, bc, pEl, bEl);
+        roundLog.innerHTML = `🌀 The enemy unleashes <b>${art.name}</b> ${art.icon} — ${art.desc}`;
+      }
+      setTimeout(() => playerTurn(pc, bc, pEl, bEl), 1100);
+      return;
+    }
+    let dmg = ovr(bc) * (0.85 + Math.random() * .3);
+    if (pShield) {
+      pShield = false;
+      roundLog.innerHTML = `🛡️ Your <b>${pc.name}</b> deflects the enemy's blow — no damage.`;
+      damageNum(pEl, 0, false);
+    } else {
+      if (bMult > 1) { dmg *= bMult; bMult = 1; }
+      pcHP -= dmg;
+      setHP(pEl, pcHP, hpOf(pc));
+      damageNum(pEl, dmg, false);
+      roundLog.innerHTML = `💥 <b>${bc.name}</b> hits <b>${pc.name}</b> for <b>${Math.round(dmg)}</b> — ${Math.max(0, Math.round(pcHP))} HP left`;
+    }
+    bRoundDmg += dmg; bScore += dmg;
+    setScore(pScore, bScore);
+    if (pcHP <= 0) { endRound(false, pc, bc, pEl, bEl); return; }
+    setTimeout(() => playerTurn(pc, bc, pEl, bEl), 1150);
+  }
+
+  function endRound(pWin, pc, bc, pEl, bEl) {
+    rounds.push({ pc, bc, ps: pRoundDmg, bs: bRoundDmg, pWin });
+    pEl.classList.add(pWin ? 'round-win' : 'round-lose');
+    bEl.classList.add(pWin ? 'round-lose' : 'round-win');
+    markTicker(round, pWin);
+    roundLog.innerHTML = `Round ${round + 1}: <b>${pc.name}</b> ${pWin ? 'stands victorious' : 'falls'} — ${pWin ? 'you' : 'the enemy'} takes the round`;
+    round++;
+    setTimeout(roundStep, 1350);
   }
   roundStep();
+}
+
+function setScore(p, b) {
+  const total = Math.max(1, p + b);
+  youBar.style.width = (p / total * 100) + '%';
+  themBar.style.width = (b / total * 100) + '%';
+  youPts.textContent = Math.round(p);
+  themPts.textContent = Math.round(b);
+}
+
+function markTicker(round, pWin) {
+  const s = roundTicker.children[round];
+  if (s) s.className = pWin ? 'won' : 'lost';
+}
+
+function roundBanner(n, pc, bc) {
+  const b = document.createElement('div');
+  b.className = 'round-banner';
+  b.innerHTML = `<div class="rb-n">Round ${n}</div><div class="rb-fight">${pc.name}<br>vs<br>${bc.name}</div>`;
+  battlePit.appendChild(b);
+  setTimeout(() => b.remove(), 1300);
+}
+
+function damageNum(cardEl, val, win) {
+  const d = document.createElement('span');
+  d.className = 'dmg ' + (win ? 'win' : 'lose');
+  d.textContent = val.toFixed(0);
+  cardEl.appendChild(d);
+  setTimeout(() => d.remove(), 1100);
 }
 
 function finishMatch(rounds, pScore, bScore) {
@@ -152,33 +419,41 @@ function finishMatch(rounds, pScore, bScore) {
 
   // card records
   playerSquad.forEach(p => {
-    const o = state.owned.find(x => x.name === p.name);
+    const o = p.rec;
     if (o) { o.wins += matchWon ? 1 : 0; o.losses += matchWon ? 0 : 1; o.streak = matchWon ? o.streak + 1 : 0; }
   });
 
-  let claimed = null, surrendered = null;
+  // level shifts — a strong W/L record promotes, sustained losses de-rank
+  const shifts = [];
+  playerSquad.forEach(p => {
+    const o = p.rec;
+    if (!o) return;
+    const dir = checkLevelShift(o);
+    if (dir) {
+      const { prev, level } = applyLevelShift(o, dir);
+      shifts.push({ name: o.name, prev, level, dir });
+    }
+  });
+
+  let claimed = null, surrendered = null, jewelV = 0;
+  let overflowPending = null;
   if (matchWon) {
     const bestBot = [...botSquad].sort((a, b) => ovr(b) - ovr(a))[0];
-    if (!state.owned.some(o => o.name === bestBot.name)) {
-      state.owned.push({ name: bestBot.name, wins: 1, losses: 0, streak: 1 });
+    const inst = makeInstance(bestBot.name, { wins: 1, streak: 1 });
+    if (hoardFull()) {
+      // album page is full — the win is real but the slot is decided after the reward
+      overflowPending = { instance: inst, player: bestBot };
     } else {
-      const o = state.owned.find(x => x.name === bestBot.name);
-      o.wins++; o.streak++;
+      state.owned.push(inst);
     }
     claimed = bestBot;
-    resultBanner.style.borderColor = 'rgba(74,222,128,.65)';
-    resultBanner.innerHTML = `🏆 Victory — you claim <b>${bestBot.name}</b> (OVR ${ovr(bestBot)}) from the enemy's coven!`;
   } else {
-    // defeat costs the crown jewel — the single most valuable card in the whole collection
+    // defeat costs the crown jewel — the single most valuable instance in the whole collection
     const jewel = crownJewel();
-    surrendered = jewel ? jewel.p : null;
     if (jewel) {
-      state.owned = state.owned.filter(o => o.name !== jewel.p.name);
-      resultBanner.style.borderColor = 'rgba(255,80,80,.65)';
-      resultBanner.innerHTML = `💔 Defeat — the enemy claims your crown jewel, <b>${jewel.p.name}</b> (worth ${coin()}${jewel.v}), into its hoard.`;
-    } else {
-      resultBanner.style.borderColor = 'rgba(255,80,80,.65)';
-      resultBanner.innerHTML = `💔 Defeat — your loaner coven escapes, but the enemy takes the glory.`;
+      surrendered = jewel.p;
+      jewelV = jewel.v;
+      state.owned = state.owned.filter(x => x.id !== jewel.o.id);
     }
   }
 
@@ -194,6 +469,33 @@ function finishMatch(rounds, pScore, bScore) {
   updateWallet();
   refreshPackHint();
   renderCollection();
+
+  if (matchWon) {
+    resultBanner.style.borderColor = 'rgba(74,222,128,.65)';
+    resultBanner.innerHTML = `🏆 Victory — you claim <b>${claimed.name}</b> (OVR ${ovr(claimed)}) from the enemy's coven!`;
+  } else if (surrendered) {
+    resultBanner.style.borderColor = 'rgba(255,80,80,.65)';
+    resultBanner.innerHTML = `💔 Defeat — the enemy claims your crown jewel, <b>${surrendered.name}</b> (worth ${coin()}${jewelV}), into its hoard.`;
+  } else {
+    resultBanner.style.borderColor = 'rgba(255,80,80,.65)';
+    resultBanner.innerHTML = `💔 Defeat — your loaner coven escapes, but the enemy takes the glory.`;
+  }
+
+  showReward(matchWon, claimed, surrendered, jewelV);
+
+  if (overflowPending) {
+    setTimeout(() => {
+      flash(`The album page is full (${MAX_HOARD}/${MAX_HOARD}) — decide what happens to your win.`);
+      resolveHoardOverflow([overflowPending], () => {
+        overflowPending = null;
+        renderCollection();
+        saveState();
+      });
+    }, 3600);
+  }
+
+  shifts.forEach((s, i) => setTimeout(() => showLevelToast(s), 3600 + i * 2800));
+
   resultBanner.classList.remove('hidden');
   roundLog.textContent = `Rounds ${pWins}–${bWins} · ` + (matchWon ? 'victory is yours' : 'the enemy prevails');
 
@@ -212,6 +514,47 @@ function finishMatch(rounds, pScore, bScore) {
   $('#rematchBtn').addEventListener('click', openPicker);
   $('#packBtn').addEventListener('click', showMenu);
   battleActive = false;
+  document.body.classList.remove('in-fight');
+}
+
+function showReward(matchWon, claimed, surrendered, jewelV) {
+  const card = claimed || surrendered;
+  if (!card) return;
+  rewardCard.innerHTML = '';
+  rewardCard.appendChild(buildCard({ ...card }, 'reward-draw', true));
+  if (matchWon) {
+    rewardGlow.className = 'reward-glow win';
+    rewardTitle.textContent = '🏆 Claimed';
+    rewardTitle.className = 'reward-title win';
+    rewardSub.textContent = `${card.name} joins your hoard`;
+  } else {
+    rewardGlow.className = 'reward-glow lose';
+    rewardTitle.textContent = '💔 Lost';
+    rewardTitle.className = 'reward-title lose';
+    rewardSub.textContent = `The enemy seizes ${card.name}${jewelV ? ' · worth ' + coin() + jewelV : ''}`;
+  }
+  rewardFoot.textContent = matchWon ? 'A new creature bound to your hoard' : 'Your crown jewel is theirs now';
+  rewardBox.classList.remove('hidden');
+  void rewardBox.offsetWidth;
+  rewardBox.classList.add('pop');
+  if (matchWon) burstReward(rewardBox);
+  setTimeout(() => {
+    rewardBox.classList.add('hidden');
+    rewardBox.classList.remove('pop');
+  }, 3400);
+}
+
+function burstReward(box) {
+  for (let i = 0; i < 12; i++) {
+    const s = document.createElement('span');
+    s.className = 'spark';
+    s.textContent = ['✦', '★', '◆'][i % 3];
+    s.style.left = (box.offsetLeft + Math.random() * box.offsetWidth) + 'px';
+    s.style.top = (box.offsetTop + Math.random() * box.offsetHeight) + 'px';
+    s.style.animationDelay = (Math.random() * .4) + 's';
+    document.body.appendChild(s);
+    setTimeout(() => s.remove(), 1600);
+  }
 }
 
 function statsHTML(rounds, pScore, bScore, matchWon, claimed, surrendered) {

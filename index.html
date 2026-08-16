@@ -13,6 +13,8 @@
 <script defer src="js/nav.js"></script>
 <script defer src="js/trade.js"></script>
 <script defer src="js/battle.js"></script>
+<script defer src="js/grading.js"></script>
+<script defer src="js/auth.js"></script>
 </head>
 <body>
 
@@ -35,8 +37,16 @@
   </div>
 </div>
 
+<div class="reward hidden" id="rewardBox">
+  <div class="reward-glow" id="rewardGlow"></div>
+  <div class="reward-title" id="rewardTitle"></div>
+  <div class="reward-sub" id="rewardSub"></div>
+  <div class="reward-card" id="rewardCard"></div>
+  <div class="reward-foot" id="rewardFoot"></div>
+</div>
+
 <div class="wrap">
-  <header>
+  <header id="siteHeader">
     <div class="kicker">Summon · Trade · Dominate</div>
     <h1>SHADOWVEIL</h1>
     <p>Open a relic pack. Command your creatures. Build the hoard.</p>
@@ -59,10 +69,25 @@
         <span class="tile-txt">Collection</span>
         <span class="tile-sub">Browse the creatures you've bound.</span>
       </button>
+      <button class="menu-tile" id="menuHallBtn">
+        <span class="tile-ico">🏆</span>
+        <span class="tile-txt">Hall of Fame</span>
+        <span class="tile-sub">The most valuable graded cards owned by collectors everywhere.</span>
+      </button>
+      <button class="menu-tile" id="menuGradingBtn">
+        <span class="tile-ico">🔬</span>
+        <span class="tile-txt">Grading Lab</span>
+        <span class="tile-sub">Reveal hidden grades · <span id="labStatus">0/3 slots busy</span></span>
+      </button>
       <button class="menu-tile" id="menuTradeBtn">
         <span class="tile-ico">🤝</span>
         <span class="tile-txt">Creature Trade</span>
         <span class="tile-sub">Two-way swaps — pick a card, buddy picks theirs.</span>
+      </button>
+      <button class="menu-tile" id="menuSettingsBtn">
+        <span class="tile-ico">⚙️</span>
+        <span class="tile-txt">Settings</span>
+        <span class="tile-sub">Your account — sign out of Shadowveil.</span>
       </button>
     </div>
   </section>
@@ -99,6 +124,27 @@
       <div class="picker" id="picker"></div>
     </div>
 
+    <div class="actions" id="arenaBack" style="margin-top:26px">
+      <button id="backMenuArena">← Back to Menu</button>
+    </div>
+
+    <div class="battle-hud hidden" id="battleHud">
+      <div class="battle-score">
+        <div class="bs-side you">
+          <span class="bs-tag">Your Coven</span>
+          <div class="bs-bar"><i id="youBar"></i></div>
+          <span class="bs-pts" id="youPts">0</span>
+        </div>
+        <div class="bs-vs">VS</div>
+        <div class="bs-side them">
+          <span class="bs-tag">The Enemy</span>
+          <div class="bs-bar"><i id="themBar"></i></div>
+          <span class="bs-pts" id="themPts">0</span>
+        </div>
+      </div>
+      <div class="round-ticker" id="roundTicker"><span>R1</span><span>R2</span><span>R3</span></div>
+    </div>
+
     <div class="battle-pit hidden" id="battlePit">
       <div class="side">
         <div class="side-tag">Your Coven</div>
@@ -127,6 +173,23 @@
     </div>
   </section>
 
+  <section class="grading hidden" id="gradingScreen">
+    <h2>Grading Lab</h2>
+    <div id="gradingBody"></div>
+    <div class="actions" style="margin-top:26px">
+      <button id="backMenuGrading">← Back to Menu</button>
+    </div>
+  </section>
+
+  <section class="hall hidden" id="leaderboardScreen">
+    <h2>Hall of Fame</h2>
+    <p class="sub">The five most valuable graded cards across every collector's hoard — owners stay anonymous.</p>
+    <div id="leaderboard"></div>
+    <div class="actions" style="margin-top:26px">
+      <button id="backMenuHall">← Back to Menu</button>
+    </div>
+  </section>
+
   <section class="trade hidden" id="tradeScreen">
     <h2>Creature Trade</h2>
     <p class="sub" id="tradeSub">Pick a card, your buddy picks theirs, and you both confirm the swap — two-sided, no waiting around.</p>
@@ -134,6 +197,26 @@
     <div id="tradeBody"></div>
     <div class="actions" style="margin-top:26px">
       <button id="backMenuTrade">← Back to Menu</button>
+    </div>
+  </section>
+
+  <section class="settings hidden" id="settingsScreen">
+    <h2>Settings</h2>
+    <div class="settings-card">
+      <p class="settings-label">Account</p>
+      <p class="settings-user" id="settingsUser">—</p>
+      <p class="settings-sub">Signed in — your hoard auto-syncs to your account.</p>
+      <div class="actions" style="margin-top:26px">
+        <button class="danger" id="settingsLogout">Log Out</button>
+        <button id="backMenuSettings">← Back to Menu</button>
+      </div>
+    </div>
+    <div class="settings-card danger-zone">
+      <p class="settings-label">Danger Zone</p>
+      <p class="settings-sub">Permanently erase every card, serial, grade, coin and battle record on this account. There is no undo.</p>
+      <div class="actions" style="margin-top:22px">
+        <button class="danger" id="clearAccountBtn">Clear Account Data</button>
+      </div>
     </div>
   </section>
 </div>

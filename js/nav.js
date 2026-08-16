@@ -2,45 +2,116 @@
    NAVIGATION — menu, pack room and arena are separate screens
    ============================================================ */
 const menu = document.querySelector('.menu');
-const packScreen = $('#packScreen'), arenaScreen = $('#arenaScreen'), collectionScreen = $('#collectionScreen'), tradeScreen = $('#tradeScreen');
+const siteHeader = $('#siteHeader');
+const packScreen = $('#packScreen'), arenaScreen = $('#arenaScreen'), collectionScreen = $('#collectionScreen'), gradingScreen = $('#gradingScreen'), tradeScreen = $('#tradeScreen'), settingsScreen = $('#settingsScreen'), hallScreen = $('#leaderboardScreen');
+function setHeaderVisible(v) {
+  if (siteHeader) siteHeader.classList.toggle('hidden', !v);
+}
 function showMenu() {
   menu.classList.remove('hidden');
   packScreen.classList.add('hidden');
   arenaScreen.classList.add('hidden');
   collectionScreen.classList.add('hidden');
+  gradingScreen.classList.add('hidden');
   tradeScreen.classList.add('hidden');
+  settingsScreen.classList.add('hidden');
+  hallScreen.classList.add('hidden');
+  setHeaderVisible(true);
   tradeCleanup();
+  setWalletVisible(true);
+  if (typeof updateLabStatus === 'function') updateLabStatus();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
+function openSettings() {
+  menu.classList.add('hidden');
+  packScreen.classList.add('hidden');
+  arenaScreen.classList.add('hidden');
+  collectionScreen.classList.add('hidden');
+  gradingScreen.classList.add('hidden');
+  tradeScreen.classList.add('hidden');
+  hallScreen.classList.add('hidden');
+  settingsScreen.classList.remove('hidden');
+  setHeaderVisible(false);
+  setWalletVisible(false);
+  const u = document.getElementById('settingsUser');
+  if (u) u.textContent = currentUser ? currentUser.user : '—';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+$('#menuHallBtn').addEventListener('click', () => {
+  menu.classList.add('hidden');
+  arenaScreen.classList.add('hidden');
+  gradingScreen.classList.add('hidden');
+  packScreen.classList.add('hidden');
+  collectionScreen.classList.add('hidden');
+  hallScreen.classList.remove('hidden');
+  setHeaderVisible(false);
+  setWalletVisible(false);
+  watchLeaderboard();
+  renderLeaderboard();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+});
+$('#backMenuHall').addEventListener('click', showMenu);
 $('#menuPackBtn').addEventListener('click', () => {
   menu.classList.add('hidden');
+  gradingScreen.classList.add('hidden');
+  hallScreen.classList.add('hidden');
   packScreen.classList.remove('hidden');
+  setHeaderVisible(false);
+  setWalletVisible(true);
   window.scrollTo({ top: 0, behavior: 'smooth' });
 });
 $('#menuArenaBtn').addEventListener('click', () => {
   menu.classList.add('hidden');
+  hallScreen.classList.add('hidden');
   arenaScreen.classList.remove('hidden');
+  setHeaderVisible(false);
+  setWalletVisible(false);
   openPicker();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 });
 $('#menuColBtn').addEventListener('click', () => {
   menu.classList.add('hidden');
   arenaScreen.classList.add('hidden');
+  gradingScreen.classList.add('hidden');
+  hallScreen.classList.add('hidden');
   packScreen.classList.add('hidden');
   collectionScreen.classList.remove('hidden');
+  setHeaderVisible(false);
+  setWalletVisible(true);
   renderCollection();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+});
+$('#menuGradingBtn').addEventListener('click', () => {
+  menu.classList.add('hidden');
+  arenaScreen.classList.add('hidden');
+  hallScreen.classList.add('hidden');
+  packScreen.classList.add('hidden');
+  collectionScreen.classList.add('hidden');
+  gradingScreen.classList.remove('hidden');
+  setHeaderVisible(false);
+  setWalletVisible(true);
+  renderGrading();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 });
 $('#backMenuCol').addEventListener('click', showMenu);
 $('#backMenuPack').addEventListener('click', showMenu);
+$('#backMenuGrading').addEventListener('click', showMenu);
 $('#menuTradeBtn').addEventListener('click', () => {
   menu.classList.add('hidden');
   arenaScreen.classList.add('hidden');
+  gradingScreen.classList.add('hidden');
+  hallScreen.classList.add('hidden');
   packScreen.classList.add('hidden');
   collectionScreen.classList.add('hidden');
   tradeScreen.classList.remove('hidden');
+  setHeaderVisible(false);
+  setWalletVisible(false);
   openTrade();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 });
 $('#backMenuTrade').addEventListener('click', showMenu);
-
+$('#backMenuArena').addEventListener('click', showMenu);
+$('#menuSettingsBtn').addEventListener('click', openSettings);
+$('#backMenuSettings').addEventListener('click', showMenu);
+$('#settingsLogout').addEventListener('click', () => logout());
+$('#clearAccountBtn').addEventListener('click', () => openClearAccountPopup());

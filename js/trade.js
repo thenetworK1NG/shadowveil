@@ -8,8 +8,8 @@ const TRADE_ITEM = 'creature';
 const tradeBody = $('#tradeBody');
 let tradeMode = 'offer';        // 'offer' | 'join'
 let tradeStep = 1;              // 1 pick · 2 connect · 3 confirm
-let myGive = null;              // name of the card I'm giving away
-let theirGive = null;           // name of the card my buddy is giving me
+let myGive = null;              // instance snapshot { id, name, serial, grade, graded } I'm giving away
+let theirGive = null;           // instance snapshot my buddy is giving me
 let tradeCode = null;
 let tradeRef = null;            // live firebase ref for the trade room
 let tradeBusy = false;
@@ -23,6 +23,12 @@ function el(tag, cls, text) {
   if (text !== undefined) d.textContent = text;
   return d;
 }
+/* A tradeable snapshot of an owned instance — serial + grade + the
+   1st Edition stamp travel with the card, so a #0002 GEM MT 10 stays
+   special after the swap. */
+function snapInstance(o) {
+  return { id: o.id, name: o.name, serial: o.serial, grade: o.grade, graded: !!o.graded, firstEd: !!o.firstEd };
+}
 function genCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let s = '';
@@ -32,17 +38,9 @@ function genCode() {
 function fbInit() {
   if (fbDb) return true;
   if (!window.firebase) { flash('Trading needs internet — the Firebase library did not load.'); return false; }
-  firebase.initializeApp({
-    apiKey: 'AIzaSyB7KNURIlPW2S2J_aJdoX3c4L6BR5gma0g',
-    authDomain: 'secu-18771.firebaseapp.com',
-    databaseURL: 'https://secu-18771-default-rtdb.firebaseio.com',
-    projectId: 'secu-18771',
-    storageBucket: 'secu-18771.firebasestorage.app',
-    messagingSenderId: '119665330735',
-    appId: '1:119665330735:web:52bdea3a4a8aac362114da',
-    measurementId: 'G-GJMJJT9636',
-  });
-  fbDb = firebase.database();
+  const db = svDb();
+  if (!db) return false;
+  fbDb = db;
   return true;
 }
 function roomPath(code) { return 'shadowveil/trades/' + code; }
@@ -61,15 +59,20 @@ function watchRoom() {
       return;
     }
     const isHost = tradeMode === 'offer';
-    const mine = isHost ? r.host : r.guest;
     const theirs = isHost ? r.guest : r.host;
     if (r.status === 'done') {
-      if (!theirGive && theirs) theirGive = theirs.name;
+      if (!theirGive && theirs) theirGive = theirs;
       if (myGive && theirGive) finalize();
       return;
     }
-    if (theirs && theirs.name && theirGive !== theirs.name) {
-      theirGive = theirs.name;
+    if (theirs && theirs.name && myGive && theirs.name === myGive.name) {
+      flash('That card is already on the table — you can\'t trade the same card back and forth.');
+      stopWatching();
+      freshTrade(tradeMode);
+      return;
+    }
+    if (theirs && theirs.name && (!theirGive || theirGive.id !== theirs.id)) {
+      theirGive = theirs;
       if (tradeStep === 2) { tradeStep = 3; tradeBusy = false; renderTrade(); }
     }
     if (theirs && theirs.confirm && myGive && theirGive) {
@@ -122,11 +125,17 @@ function swapPreview() {
   wrap.className = 'trade-swap';
   const left = document.createElement('div');
   left.appendChild(el('p', 'trade-side', 'You give'));
-  left.appendChild(buildCard({ ...findPlayer(myGive) }, 'p-card', true));
+  left.appendChild(buildCard({ ...findPlayer(myGive.name), rec: myGive }, 'p-card', true));
+  const lv = el('p', 'trade-val');
+  lv.innerHTML = `${coin()}${cardValue(findPlayer(myGive.name), myGive)}`;
+  left.appendChild(lv);
   const arrow = el('div', 'trade-arrow', '⇄');
   const right = document.createElement('div');
   right.appendChild(el('p', 'trade-side', 'You receive'));
-  right.appendChild(buildCard({ ...findPlayer(theirGive) }, 'p-card', true));
+  right.appendChild(buildCard({ ...findPlayer(theirGive.name), rec: theirGive }, 'p-card', true));
+  const rv = el('p', 'trade-val');
+  rv.innerHTML = `${coin()}${cardValue(findPlayer(theirGive.name), theirGive)}`;
+  right.appendChild(rv);
   wrap.appendChild(left);
   wrap.appendChild(arrow);
   wrap.appendChild(right);
@@ -160,8 +169,13 @@ function renderOffer(box) {
     state.owned.forEach(o => {
       const p = findPlayer(o.name);
       if (!p) return;
-      const card = buildCard({ ...p, rec: o }, 'p-card', true);
-      card.addEventListener('click', () => { if (!tradeBusy) { myGive = p.name; createRoom(); } });
+      const card = buildCard({ ...effPlayer(p, o), rec: o }, 'p-card', true);
+      card.addEventListener('click', () => {
+        if (tradeBusy) return;
+        if (o.grading) { flash('That card is in the grading lab right now.'); return; }
+        myGive = snapInstance(o);
+        createRoom();
+      });
       picker.appendChild(card);
     });
     box.appendChild(picker);
@@ -177,7 +191,7 @@ function createRoom() {
   tradeBusy = true;
   tradeCode = genCode();
   tradeRef = fbDb.ref(roomPath(tradeCode));
-  tradeRef.set({ host: { name: myGive, confirm: false }, status: 'open', ts: Date.now() })
+  tradeRef.set({ host: { ...myGive, confirm: false }, status: 'open', ts: Date.now() })
     .then(() => {
       sweepRooms();
       tradeBusy = false; tradeStep = 2;
@@ -204,7 +218,7 @@ function renderWaiting(box) {
   wait.appendChild(el('p', 'trade-code', tradeCode));
   const offer = document.createElement('p');
   offer.className = 'trade-offer-line';
-  offer.innerHTML = `Send this code to your friend — they enter it, pick their card, and you both confirm. You're giving <b>${findPlayer(myGive).name}</b>`;
+  offer.innerHTML = `Send this code to your friend — they enter it, pick their card, and you both confirm. You're giving <b>${findPlayer(myGive.name).name}</b> <span class="serial hot">#${String(myGive.serial).padStart(4, '0')}</span>`;
   wait.appendChild(offer);
   const acts = document.createElement('div');
   acts.className = 'actions';
@@ -264,26 +278,39 @@ function renderJoin(box) {
   } else if (tradeStep === 2) {
     const recv = document.createElement('p');
     recv.className = 'pick-hint';
-    recv.innerHTML = `You're receiving <b>${findPlayer(theirGive).name}</b> — pick the card you'll give in return`;
+    recv.innerHTML = `You're receiving <b>${findPlayer(theirGive.name).name}</b> <span class="serial hot">#${String(theirGive.serial).padStart(4, '0')}</span> — pick the card you'll give in return`;
     box.appendChild(recv);
     if (state.owned.length === 0) {
       box.appendChild(el('p', 'trade-offer-line', 'Your hoard is empty — open a pack first.'));
       return;
+    }
+    if (state.owned.some(o => o.name === theirGive.name)) {
+      box.appendChild(el('p', 'trade-warn', "You already own a copy of the card being offered — you can't trade the same card back and forth."));
     }
     const picker = document.createElement('div');
     picker.className = 'picker';
     state.owned.forEach(o => {
       const p = findPlayer(o.name);
       if (!p) return;
-      const card = buildCard({ ...p, rec: o }, 'p-card', true);
-      card.addEventListener('click', () => {
-        if (tradeBusy) return;
-        myGive = p.name;
-        tradeBusy = true;
-        tradeRef.child('guest').set({ name: myGive, confirm: false })
-          .then(() => { tradeBusy = false; tradeStep = 3; renderTrade(); })
-          .catch(() => { tradeBusy = false; flash('Could not reach the trade server.'); });
-      });
+      const card = buildCard({ ...effPlayer(p, o), rec: o }, 'p-card', true);
+      if (p.name === theirGive.name) {
+        card.classList.add('blocked');
+        const tag = document.createElement('span');
+        tag.className = 'block-tag';
+        tag.textContent = 'Same Card';
+        card.appendChild(tag);
+        card.addEventListener('click', () => flash('You can\'t trade the same card back — pick a different one.'));
+      } else {
+        card.addEventListener('click', () => {
+          if (tradeBusy) return;
+          if (o.grading) { flash('That card is in the grading lab right now.'); return; }
+          myGive = snapInstance(o);
+          tradeBusy = true;
+          tradeRef.child('guest').set({ ...myGive, confirm: false })
+            .then(() => { tradeBusy = false; tradeStep = 3; renderTrade(); })
+            .catch(() => { tradeBusy = false; flash('Could not reach the trade server.'); });
+        });
+      }
       picker.appendChild(card);
     });
     box.appendChild(picker);
@@ -324,7 +351,7 @@ function joinRoom() {
     }
     tradeRef = ref;
     tradeCode = code;
-    theirGive = r.host.name;
+    theirGive = r.host;
     tradeStep = 2;
     tradeBusy = false;
     renderTrade();
@@ -334,16 +361,22 @@ function joinRoom() {
 
 function finalize() {
   if (done) return;
+  if (!myGive || !theirGive || myGive.name === theirGive.name) {
+    flash('You can\'t trade a card for itself — pick a different card.');
+    stopWatching();
+    freshTrade(tradeMode);
+    return;
+  }
   done = true;
-  const theirCard = findPlayer(theirGive);
-  if (!theirCard || !state.owned.some(x => x.name === myGive)) {
+  const theirCard = findPlayer(theirGive.name);
+  if (!theirCard || !state.owned.some(x => x.id === myGive.id)) {
     flash('The cards did not line up — trade cancelled.');
     stopWatching();
     freshTrade(tradeMode);
     return;
   }
-  const gaveCard = findPlayer(myGive);
-  applySwap(myGive, theirCard);
+  const gaveCard = findPlayer(myGive.name);
+  applySwap(myGive, theirGive);
   saveState(); renderCollection(); updateWallet();
   const ref = tradeRef;
   if (ref) {
@@ -351,10 +384,10 @@ function finalize() {
     setTimeout(() => ref.remove().catch(() => {}), 2000);
   }
   stopWatching();
-  showTradeDone(gaveCard, theirCard);
+  showTradeDone(gaveCard, theirCard, myGive, theirGive);
 }
 
-function showTradeDone(gave, got) {
+function showTradeDone(gave, got, gaveRec, gotRec) {
   tradeBody.innerHTML = '';
   const doneEl = document.createElement('div');
   doneEl.className = 'trade-wait';
@@ -363,10 +396,10 @@ function showTradeDone(gave, got) {
   cards.className = 'trade-review-cards';
   const gotBox = document.createElement('div');
   gotBox.appendChild(el('p', 'trade-side', 'You received'));
-  gotBox.appendChild(buildCard({ ...got }, 'p-card', true));
+  gotBox.appendChild(buildCard({ ...got, rec: gotRec }, 'p-card', true));
   const gaveBox = document.createElement('div');
   gaveBox.appendChild(el('p', 'trade-side', 'You gave'));
-  gaveBox.appendChild(buildCard({ ...gave }, 'p-card', true));
+  gaveBox.appendChild(buildCard({ ...gave, rec: gaveRec }, 'p-card', true));
   cards.appendChild(gotBox);
   cards.appendChild(gaveBox);
   doneEl.appendChild(cards);
@@ -379,10 +412,12 @@ function showTradeDone(gave, got) {
   $('#tradeDoneBtn').addEventListener('click', () => openTrade());
 }
 
-function applySwap(giveName, getCard) {
-  state.owned = state.owned.filter(x => x.name !== giveName);
-  if (!state.owned.some(x => x.name === getCard.name)) {
-    state.owned.push({ name: getCard.name, wins: 0, losses: 0, streak: 0 });
-  }
+function applySwap(give, get) {
+  state.owned = state.owned.filter(x => x.id !== give.id);
+  const received = makeInstance(get.name, { serial: get.serial, grade: get.grade, graded: get.graded, firstEd: get.firstEd });
+  // claim the incoming serial locally so we never re-mint it ourselves
+  const arr = state.serialBase[get.name] = Array.isArray(state.serialBase[get.name]) ? state.serialBase[get.name] : [];
+  if (typeof get.serial === 'number' && !arr.includes(get.serial)) { arr.push(get.serial); syncSerials(get.name, arr); }
+  state.owned.push(received);
 }
 
