@@ -833,8 +833,9 @@ function cardFront(p) {
   const rarity = RARITY[p.rarity];
   const ovr = Math.round((p.power + p.cunning + p.arcana) / 3);
   const stars = '★'.repeat(RANK.indexOf(p.rarity) + 1);
-  const art = p.img
-    ? `<img src="${p.img}" alt="${p.name}" data-name="${p.name}" onerror="silFallback(this)">`
+  const artSrc = creatureImg(p.name);
+  const art = artSrc
+    ? `<img src="${artSrc}" alt="${p.name}" data-name="${p.name}" onerror="silFallback(this)">`
     : '';
   const chip = (label, val) => `<div class="chip"><span>${label}</span><b>${val}</b><i><em data-v="${val}"></em></i></div>`;
   const rec = p.rec || null;
@@ -856,7 +857,7 @@ function cardFront(p) {
       <span class="team">${p.realm}</span>
       <span class="top-right">${gradeChip}<span class="rarity-tag">${RARITY_LABEL[p.rarity]}</span></span>
     </div>
-    <div class="photo${p.img ? '' : ' nophoto'}">
+    <div class="photo${artSrc ? '' : ' nophoto'}">
       <div class="energy"></div>
       <div class="lines"></div>
       ${art}

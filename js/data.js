@@ -1,10 +1,12 @@
 /* ============================================================
    HOW TO ADD YOUR CREATURES' PHOTOS
    ------------------------------------------------------------
-   1) Drop image files anywhere (e.g. a folder named "creatures").
-   2) In the CREATURES list below, set that creature's "img" to the
-      file path, e.g.  img: 'creatures/vorlag.jpg'
-   3) Leave img: '' to use the automatic placeholder silhouette.
+   1) Drop the image file into the "creatures" folder.
+   2) Open creatures/art.json and set that creature's "img" to the
+      file path, e.g.  "img": "creatures/vorlag.jpg"
+   3) Leave "img": "" to use the automatic placeholder silhouette.
+   The img field here in data.js is no longer used — art is read
+   from creatures/art.json via js/art.js.
    ------------------------------------------------------------
    Each creature: name, role, realm, img, power (0-100), cunning,
    arcana, rarity: 'bronze' | 'silver' | 'gold' | 'diamond'
