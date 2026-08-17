@@ -3,10 +3,14 @@
    ============================================================ */
 const menu = document.querySelector('.menu');
 const siteHeader = $('#siteHeader');
+const siteFooter = $('#siteFooter');
 const packScreen = $('#packScreen'), arenaScreen = $('#arenaScreen'), collectionScreen = $('#collectionScreen'), gradingScreen = $('#gradingScreen'), tradeScreen = $('#tradeScreen'), settingsScreen = $('#settingsScreen'), hallScreen = $('#leaderboardScreen');
 function battleLocked() { return typeof battleActive !== 'undefined' && battleActive; }
 function setHeaderVisible(v) {
   if (siteHeader) siteHeader.classList.toggle('hidden', !v);
+}
+function setFooterVisible(v) {
+  if (siteFooter) siteFooter.classList.toggle('hidden', !v);
 }
 function showMenu() {
   if (battleLocked()) return;
@@ -20,6 +24,7 @@ function showMenu() {
   settingsScreen.classList.add('hidden');
   hallScreen.classList.add('hidden');
   setHeaderVisible(true);
+  setFooterVisible(true);
   tradeCleanup();
   setWalletVisible(true);
   if (typeof updateLabStatus === 'function') updateLabStatus();
@@ -36,6 +41,7 @@ function openSettings() {
   hallScreen.classList.add('hidden');
   settingsScreen.classList.remove('hidden');
   setHeaderVisible(false);
+  setFooterVisible(false);
   setWalletVisible(false);
   const u = document.getElementById('settingsUser');
   if (u) u.textContent = currentUser ? currentUser.user : '—';
@@ -50,6 +56,7 @@ $('#menuHallBtn').addEventListener('click', () => {
   collectionScreen.classList.add('hidden');
   hallScreen.classList.remove('hidden');
   setHeaderVisible(false);
+  setFooterVisible(false);
   setWalletVisible(false);
   watchLeaderboard();
   renderLeaderboard();
@@ -64,6 +71,7 @@ $('#menuPackBtn').addEventListener('click', () => {
   hallScreen.classList.add('hidden');
   packScreen.classList.remove('hidden');
   setHeaderVisible(false);
+  setFooterVisible(false);
   setWalletVisible(true);
   window.scrollTo({ top: 0, behavior: 'smooth' });
 });
@@ -73,6 +81,7 @@ $('#menuArenaBtn').addEventListener('click', () => {
   hallScreen.classList.add('hidden');
   arenaScreen.classList.remove('hidden');
   setHeaderVisible(false);
+  setFooterVisible(false);
   setWalletVisible(false);
   openPicker();
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -86,6 +95,7 @@ $('#menuColBtn').addEventListener('click', () => {
   packScreen.classList.add('hidden');
   collectionScreen.classList.remove('hidden');
   setHeaderVisible(false);
+  setFooterVisible(false);
   setWalletVisible(true);
   renderCollection();
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -99,6 +109,7 @@ $('#menuGradingBtn').addEventListener('click', () => {
   collectionScreen.classList.add('hidden');
   gradingScreen.classList.remove('hidden');
   setHeaderVisible(false);
+  setFooterVisible(false);
   setWalletVisible(true);
   renderGrading();
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -116,12 +127,12 @@ $('#menuTradeBtn').addEventListener('click', () => {
   collectionScreen.classList.add('hidden');
   tradeScreen.classList.remove('hidden');
   setHeaderVisible(false);
+  setFooterVisible(false);
   setWalletVisible(false);
   openTrade();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 });
 $('#backMenuTrade').addEventListener('click', showMenu);
-$('#backMenuArena').addEventListener('click', showMenu);
 $('#menuSettingsBtn').addEventListener('click', openSettings);
 $('#backMenuSettings').addEventListener('click', showMenu);
 $('#settingsLogout').addEventListener('click', () => logout());

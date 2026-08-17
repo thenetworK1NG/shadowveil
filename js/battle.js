@@ -293,16 +293,13 @@ function openPicker() {
   battleHud.classList.add('hidden');
   rewardBox.classList.add('hidden');
   document.querySelector('.picker-wrap').classList.remove('hidden');
-  $('#arenaBack').classList.remove('hidden');
-  $('#arenaSub').textContent = 'Pick three battle cards and a hidden redemption card. Fights are turn-based — burn your one-use relics mid-duel. Lose, and the enemy walks off with your crown jewel.';
+  if ($('#arenaSub')) $('#arenaSub').textContent = 'Pick three battle cards and a hidden redemption card. Fights are turn-based — burn your one-use relics mid-duel. Lose, and the enemy walks off with your crown jewel.';
   // Candidates are bound creatures only. Grading cards remain visible but locked.
-  // duplicate copies of the same creature collapse into their best instance for the arena.
-  const seen = new Set();
+  // Each card instance appears separately so duplicates can be picked individually.
   candidatePool = state.owned
     .map(o => { const e = effPlayer(findPlayer(o.name), o); if (e) e.rec = o; return e; })
     .filter(Boolean)
-    .sort((a, b) => ovr(b) - ovr(a))
-    .filter(p => { if (seen.has(p.name)) return false; seen.add(p.name); return true; });
+    .sort((a, b) => ovr(b) - ovr(a));
   renderPicker();
   renderSlots();
 }
@@ -314,14 +311,14 @@ function renderPicker() {
     const sleevedLocked = !!(p.rec && p.rec.sleeved);
     const locked = gradingLocked || sleevedLocked;
     const card = buildCard({ ...p }, 'p-card' + (gradingLocked ? ' grading-locked' : '') + (sleevedLocked ? ' sleeved-locked' : ''), true);
-    card.dataset.name = p.name;
+    card.dataset.id = p.rec.id;
     if (sleevedLocked) {
       const tag = document.createElement('span');
       tag.className = 'sleeve-pick-tag';
       tag.textContent = 'Sleeved · Protected';
       card.appendChild(tag);
     }
-    if (redemptionPick === p.name) {
+    if (redemptionPick === p.rec.id) {
       const tag = document.createElement('span');
       tag.className = 'redemption-pick-tag';
       tag.textContent = 'Redemption';
@@ -335,28 +332,113 @@ function renderPicker() {
       tag.title = 'Favorite card';
       card.appendChild(tag);
     }
-    if (!locked) card.addEventListener('click', () => togglePick(p.name));
+    if (!locked) card.addEventListener('click', () => openPickerInspect(p.rec.id));
     picker.appendChild(card);
   });
   $$('.p-card').forEach(el => {
-    el.classList.toggle('picked', picked.includes(el.dataset.name));
-    el.classList.toggle('redemption-picked', redemptionPick === el.dataset.name);
+    el.classList.toggle('picked', picked.includes(el.dataset.id));
+    el.classList.toggle('redemption-picked', redemptionPick === el.dataset.id);
   });
 }
 
-function togglePick(name) {
-  const idx = picked.indexOf(name);
+function togglePick(id) {
+  const idx = picked.indexOf(id);
   if (idx >= 0) { picked[idx] = null; }
-  else if (redemptionPick === name) { redemptionPick = null; }
+  else if (redemptionPick === id) { redemptionPick = null; }
   else {
-    const p = candidatePool.find(x => x.name === name);
+    const p = candidatePool.find(x => x.rec && x.rec.id === id);
     if (!p || (p.rec && (p.rec.grading || p.rec.sleeved))) return;
     const slot = picked.findIndex(card => card === null);
-    if (slot >= 0) picked[slot] = name;
-    else if (!redemptionPick) redemptionPick = name;
+    if (slot >= 0) picked[slot] = id;
+    else if (!redemptionPick) redemptionPick = id;
   }
   renderPicker();
   renderSlots();
+}
+
+function openPickerInspect(id) {
+  const p = candidatePool.find(x => x.rec && x.rec.id === id);
+  if (!p || !p.rec) return;
+  const o = p.rec;
+  const e = effPlayer(findPlayer(o.name), o);
+  if (!e) return;
+  const lvl = o.level || 1;
+  const evolution = evolutionForLevel(lvl);
+  const val = cardValue(findPlayer(o.name), o);
+  const progress = xpProgress(o);
+  const stat = (label, v, color) => `
+    <div class="ci-stat">
+      <div class="ci-stat-top"><span>${label}</span><b>${v}</b></div>
+      <div class="ci-track"><i style="--w:${v}%;--c:${color}"></i></div>
+    </div>`;
+  const isPicked = picked.includes(id);
+  const isRedemption = redemptionPick === id;
+  const SLOT_LABELS_LOCAL = ['Card 1', 'Card 2', 'Card 3', 'Redemption'];
+  const slotButtons = [];
+  for (let i = 0; i < 3; i++) {
+    const filled = picked[i] && picked[i] !== id;
+    const occupied = filled ? candidatePool.find(x => x.rec && x.rec.id === picked[i]) : null;
+    const currentSlot = picked[i] === id;
+    slotButtons.push(`<button class="ci-slot-btn${currentSlot ? ' active' : ''}" data-slot="${i}" ${filled && !currentSlot ? 'disabled' : ''}><span class="slot-num">Slot ${i + 1}</span><span class="slot-name">${currentSlot ? '✓ ' + e.name : occupied ? occupied.name : 'Empty'}</span></button>`);
+  }
+  const redFilled = redemptionPick && redemptionPick !== id;
+  const redOccupied = redFilled ? candidatePool.find(x => x.rec && x.rec.id === redemptionPick) : null;
+  const currentRed = redemptionPick === id;
+  slotButtons.push(`<button class="ci-slot-btn ci-slot-red${currentRed ? ' active' : ''}" data-slot="3" ${redFilled && !currentRed ? 'disabled' : ''}><span class="slot-num">Redeem</span><span class="slot-name">${currentRed ? '✓ ' + e.name : redOccupied ? redOccupied.name : 'Empty'}</span></button>`);
+  const box = document.createElement('div');
+  box.className = 'card-inspect picker-inspect';
+  const wrap = document.createElement('div');
+  wrap.className = 'ci-inner';
+  wrap.innerHTML = `
+    <div class="ci-top-row">
+      <div class="ci-card"></div>
+      <div class="ci-slots-side">
+        <div class="ci-slots-row">${slotButtons.join('')}</div>
+      </div>
+    </div>
+    <div class="ci-panel">
+      <div class="ci-head">
+        <span class="ci-rarity rare-${e.rarity}">${RARITY_LABEL[e.rarity]}</span>
+        ${isFirstEdition(o.serial) ? `<span class="ci-firsted">★ 1st Edition</span>` : ''}
+        <span class="ci-evolution evo-${evolution.key}">${evolution.label}${evolution.capped ? ' · CAPPED' : ''}</span>
+        <span class="ci-lvl">Lv ${lvl} · XP ${evolution.capped ? 'MAX' : `${progress.current}/${progress.needed}`}</span>
+        <span class="ci-role">${e.realm}</span>
+      </div>
+      <div class="ci-meta">
+        <span class="ci-ovr">OVR <b>${ovr(e)}</b></span>
+        <span class="ci-rec">${o.rarityCode || 'CARD #0000'} · W <b>${o.wins || 0}</b> L <b>${o.losses || 0}</b></span>
+        <span class="ci-val">${coin()}<b>${val}</b></span>
+      </div>
+      <div class="ci-actions"><button class="primary" id="ciBack">Back</button></div>
+    </div>`;
+  const card = buildCard({ ...e, rec: o }, 'ci-draw', true);
+  wrap.querySelector('.ci-card').appendChild(card);
+  box.appendChild(wrap);
+  document.body.appendChild(box);
+  requestAnimationFrame(() => box.classList.add('pop'));
+  const close = () => {
+    box.classList.remove('pop');
+    setTimeout(() => box.remove(), 200);
+  };
+  box.addEventListener('click', ev => { if (ev.target === box) close(); });
+  wrap.querySelector('#ciBack').addEventListener('click', close);
+  wrap.querySelectorAll('.ci-slot-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const slot = parseInt(btn.dataset.slot, 10);
+      const isInSlot = (slot < 3 && picked[slot] === id) || (slot === 3 && redemptionPick === id);
+      const idx = picked.indexOf(id);
+      if (idx >= 0) picked[idx] = null;
+      if (redemptionPick === id) redemptionPick = null;
+      if (!isInSlot) {
+        if (slot < 3) picked[slot] = id;
+        else redemptionPick = id;
+      }
+      close();
+      renderPicker();
+      renderSlots();
+    });
+  });
+  setTimeout(() => wrap.querySelectorAll('.ci-track i').forEach(b => b.classList.add('fill')), 60);
 }
 
 function renderSlots() {
@@ -365,7 +447,7 @@ function renderSlots() {
     const slot = document.createElement('div');
     const selected = i < 3 ? picked[i] : redemptionPick;
     slot.className = 'slot' + (selected ? ' filled' : '') + (i === 3 ? ' redemption-slot' : '');
-    const p = candidatePool.find(x => x.name === selected);
+    const p = candidatePool.find(x => x.rec && x.rec.id === selected);
     const head = SLOT_LABELS[i];
     const evolution = p ? evolutionForLevel(p.level) : null;
     slot.innerHTML = p
@@ -374,9 +456,13 @@ function renderSlots() {
     squadSlots.appendChild(slot);
   }
   const ready = picked.every(Boolean) && !!redemptionPick;
-  $('#arenaActions').innerHTML = `<button class="primary" id="fightBtn" ${ready ? '' : 'disabled'}>Fight</button>`;
-  const fb = $('#fightBtn');
-  if (fb) fb.addEventListener('click', () => { if (ready) startFight(); });
+  if (ready) {
+    $('#arenaActions').innerHTML = `<button class="fight-btn" id="fightBtn">⚔ Fight</button>`;
+    const fb = $('#fightBtn');
+    if (fb) fb.addEventListener('click', () => startFight());
+  } else {
+    $('#arenaActions').innerHTML = '';
+  }
 }
 
 function buildBotSquad() {
@@ -390,7 +476,8 @@ function buildBotSquad() {
   const virtualCard = (base, target) => {
     const level = Math.max(1, Math.floor(Number(target.level) || 1));
     const rarity = randomRarity();
-    const card = effPlayer(base, { level, rarity, rarityCode: mintRarityCode(rarity), stats: randomCardStats(base), element: botElementFor(target) });
+    const fakeSerial = 1 + Math.floor(Math.random() * MAX_SERIAL);
+    const card = effPlayer(base, { level, rarity, serial: fakeSerial, rarityCode: makeRarityCode(rarity, fakeSerial), stats: randomCardStats(base), element: botElementFor(target) });
     card.botLevel = level;
     return card;
   };
@@ -451,7 +538,8 @@ function buildBotRedemption(targets, squad) {
   const base = PLAYERS.filter(p => !used.has(p.name)).sort((a, b) => ovr(b) - ovr(a))[0] || PLAYERS[0];
   const level = Math.max(1, Math.floor(Number(target.level) || 1));
   const rarity = randomRarity();
-  const card = effPlayer(base, { level, rarity, rarityCode: mintRarityCode(rarity), stats: randomCardStats(base), element: botElementFor(target) });
+  const fakeSerial = 1 + Math.floor(Math.random() * MAX_SERIAL);
+  const card = effPlayer(base, { level, rarity, serial: fakeSerial, rarityCode: makeRarityCode(rarity, fakeSerial), stats: randomCardStats(base), element: botElementFor(target) });
   card.botLevel = level;
   card.redemption = true;
   return card;
@@ -500,19 +588,39 @@ function rollBotArtifacts() {
   }
   return loadout;
 }
-function showBotArtifacts() {
-  const old = document.getElementById('botArtRow');
-  if (old) old.remove();
-  const visible = (botArtifacts || []).filter(a => a.count > 0);
-  if (!visible.length) return;
-  const row = document.createElement('div');
-  row.id = 'botArtRow';
-  row.className = 'bot-art-row';
-  row.innerHTML = '<span class="bot-art-label">Relics</span>' + visible.map(a => {
-    const art = findArtifact(a.name);
-    return `<span class="bot-art" title="${art.name} — ${art.desc}">${art.icon}<b>×${a.count}</b></span>`;
-  }).join('');
-  bSquad.parentElement.appendChild(row);
+function showBotArtifacts() { /* relic cards now rendered in deck via renderDeckRelics */ }
+
+function buildRelicCard(a, count, side) {
+  const art = findArtifact(a.name);
+  if (!art || count <= 0) return null;
+  const el = document.createElement('div');
+  el.className = 'b-card relic-card relic-' + side;
+  el.dataset.artifactName = a.name;
+  el.dataset.side = side;
+  el.innerHTML = `
+    <div class="tcard tier-${art.tier}">
+      <div class="relic-icon">${art.icon}</div>
+      <div class="relic-name">${art.name}</div>
+      <div class="relic-tier">${ARTIFACT_TIER_LABEL[art.tier]}</div>
+      <div class="relic-count">×${count}</div>
+    </div>`;
+  return el;
+}
+function renderDeckRelics() {
+  const pRelicsEl = document.getElementById('pRelics');
+  const bRelicsEl = document.getElementById('bRelics');
+  if (pRelicsEl) pRelicsEl.innerHTML = '';
+  if (bRelicsEl) bRelicsEl.innerHTML = '';
+  const pArts = battleArtifacts(state.artifacts, BATTLE_ART_CAP);
+  pArts.forEach(a => {
+    const el = buildRelicCard(a, a.count, 'player');
+    if (el && pRelicsEl) pRelicsEl.appendChild(el);
+  });
+  const bArts = (botArtifacts || []).filter(a => a.count > 0);
+  bArts.forEach(a => {
+    const el = buildRelicCard(a, a.count, 'bot');
+    if (el && bRelicsEl) bRelicsEl.appendChild(el);
+  });
 }
 
 /* One duel = one of your creatures against one of theirs, decided
@@ -523,8 +631,8 @@ function startFight() {
   battleActive = true;
   document.body.classList.add('in-fight');
   document.getElementById('squadSlots').classList.add('hidden');
-  playerSquad = [0, 1, 2].map(i => candidatePool.find(x => x.name === picked[i]));
-  playerRedemption = candidatePool.find(x => x.name === redemptionPick);
+  playerSquad = [0, 1, 2].map(i => candidatePool.find(x => x.rec && x.rec.id === picked[i]));
+  playerRedemption = candidatePool.find(x => x.rec && x.rec.id === redemptionPick);
   const blockedCard = playerSquad.concat(playerRedemption || []).find(p => !p || (p.rec && (p.rec.grading || p.rec.sleeved)));
   if (blockedCard !== undefined) {
     abortBattle(true);
@@ -546,8 +654,7 @@ function startFight() {
   botSquad.push(botRedemption);
   botArtifacts = rollBotArtifacts();
   document.querySelector('.picker-wrap').classList.add('hidden');
-  $('#arenaBack').classList.add('hidden');
-  $('#arenaSub').textContent = 'Make the call: attack, switch for a better matchup, or spend a relic. Clear all four enemy cards to win.';
+  if ($('#arenaSub')) $('#arenaSub').textContent = 'Make the call: attack, switch for a better matchup, or spend a relic. Clear all four enemy cards to win.';
   battleHud.classList.remove('hidden');
   setScore(0, 0);
   $$('#roundTicker span').forEach((s, i) => { s.className = ''; s.textContent = 'KO' + (i + 1); });
@@ -557,8 +664,7 @@ function startFight() {
      const hidden = i === 3;
      const c = buildCard({ ...p }, 'b-card' + (hidden ? ' redemption-card redemption-hidden' : ''), true);
      c.id = 'pc' + i;
-     if (hidden) c.querySelector('.flip-inner').classList.add('flipped');
-      else bindPlayerPreview(c, p, () => botSquad[bActive]);
+      if (hidden) c.querySelector('.flip-inner').classList.add('flipped');
      pSquad.appendChild(c);
    });
    botSquad.forEach((p, i) => {
@@ -569,8 +675,8 @@ function startFight() {
      else bindEnemyPreview(c, p, () => playerSquad[pActive]);
      bSquad.appendChild(c);
    });
-  showBotArtifacts();
-  $('#arenaActions').innerHTML = '';
+   renderDeckRelics();
+   $('#arenaActions').innerHTML = '';
 
   let pScore = 0, bScore = 0;
   let pActive = 0, bActive = 0;
@@ -656,12 +762,12 @@ function startFight() {
       })[0] ?? -1;
   }
   function refreshActive() {
-    pSquad.querySelectorAll('.b-card').forEach((el, i) => {
+    pSquad.querySelectorAll('.b-card:not(.relic-card)').forEach((el, i) => {
       el.classList.toggle('battle-active', i === pActive && pAlive[i]);
       el.classList.toggle('battle-defeated', !pAlive[i]);
       setHP(el, pHP[i], hpOf(playerSquad[i]));
     });
-    bSquad.querySelectorAll('.b-card').forEach((el, i) => {
+    bSquad.querySelectorAll('.b-card:not(.relic-card)').forEach((el, i) => {
       el.classList.toggle('battle-active', i === bActive && bAlive[i]);
       el.classList.toggle('battle-defeated', !bAlive[i]);
       setHP(el, bHP[i], hpOf(botSquad[i]));
@@ -753,20 +859,14 @@ function startFight() {
     const acts = $('#arenaActions');
     const options = aliveIndexes(pAlive).filter(i => i !== pActive);
     focusTurn.textContent = 'CHOOSE REPLACEMENT';
-    acts.innerHTML = '<div class="action-header"><span class="turn-prompt">Choose a replacement</span><span class="action-tip">Keep the pressure on</span></div>';
-    options.forEach(i => {
-      const b = document.createElement('button');
-      b.className = 'switch-btn';
-      b.innerHTML = `${elementInfo(playerSquad[i].element).icon} ${playerSquad[i].name}`;
-      b.addEventListener('click', () => {
-        disableActs(acts);
-        pActive = i;
-        pMult = 1; pShield = false; pStun = false;
-        refreshActive();
-        focusTurn.textContent = 'YOUR TURN';
-        playerTurn();
-      });
-      acts.appendChild(b);
+    acts.innerHTML = '<div class="action-header"><span class="turn-prompt">Choose a replacement</span><span class="action-tip">Tap a card below</span></div>';
+    bindSwapCards(acts, i => {
+      disableActs(acts);
+      pActive = i;
+      pMult = 1; pShield = false; pStun = false;
+      refreshActive();
+      focusTurn.textContent = 'YOUR TURN';
+      playerTurn();
     });
   }
   function defeat(side, index, killerIndex) {
@@ -801,6 +901,7 @@ function startFight() {
   }
   function switchPlayer(index) {
     if (!pAlive[index] || index === pActive) return;
+    clearSwapCards();
     closeEngagement(null);
     pCombat[pActive].switches++;
     pActive = index;
@@ -836,6 +937,102 @@ function startFight() {
     refreshActive();
     battleLater(() => playerTurn(), 900);
   }
+  function bindSwapCards(acts, onPick) {
+    const rebinder = () => bindSwapCards(acts, onPick);
+    const cards = pSquad.querySelectorAll('.b-card:not(.relic-card)');
+    cards.forEach((el, i) => {
+      if (i === pActive || !pAlive[i] || i === 3) return;
+      el.classList.add('swap-tappable');
+      el.addEventListener('click', el._swapHandler = () => {
+        clearSwapCards();
+        showCardOptionPopup(i, onPick, rebinder);
+      });
+    });
+  }
+  function showCardOptionPopup(index, onPick, rebinder) {
+    const p = playerSquad[index];
+    const elem = elementInfo(p.element);
+    const evo = evolutionForLevel(p.level || 1);
+    const box = document.createElement('div');
+    box.className = 'card-inspect swap-popup pop';
+    box.innerHTML = `
+      <div class="ci-inner swap-popup-inner">
+        <div class="swap-popup-title">${elem.icon} ${p.name}</div>
+        <div class="swap-popup-sub">${evo.label} · Lv ${p.level || 1} · OVR ${ovr(p)}</div>
+        <div class="swap-popup-btns">
+          <button class="swap-action-btn" id="swapView">View Stats</button>
+          <button class="swap-action-btn primary" id="swapDo">Switch To</button>
+          <button class="swap-action-btn" id="swapCancel">Cancel</button>
+        </div>
+      </div>`;
+    document.body.appendChild(box);
+    requestAnimationFrame(() => box.classList.add('pop'));
+    const close = () => { box.classList.remove('pop'); setTimeout(() => box.remove(), 200); };
+    const dismiss = () => { close(); rebinder(); };
+    box.addEventListener('click', ev => { if (ev.target === box) dismiss(); });
+    box.querySelector('#swapDo').addEventListener('click', ev => {
+      ev.stopPropagation(); close(); onPick(index);
+    });
+    box.querySelector('#swapCancel').addEventListener('click', ev => {
+      ev.stopPropagation(); dismiss();
+    });
+    box.querySelector('#swapView').addEventListener('click', ev => {
+      ev.stopPropagation(); close();
+      showPlayerCardPreview(p, botSquad[bActive]);
+      rebinder();
+    });
+  }
+  function clearSwapCards() {
+    pSquad.querySelectorAll('.b-card:not(.relic-card)').forEach(c => { c.classList.remove('swap-tappable'); if (c._swapHandler) { c.removeEventListener('click', c._swapHandler); c._swapHandler = null; } });
+  }
+  function bindRelicCards(acts) {
+    const pRelicsEl = document.getElementById('pRelics');
+    if (!pRelicsEl) return;
+    pRelicsEl.querySelectorAll('.relic-card.relic-player').forEach(el => {
+      el.classList.add('swap-tappable');
+      el.addEventListener('click', el._relicHandler = () => {
+        const artName = el.dataset.artifactName;
+        const art = findArtifact(artName);
+        if (!art) return;
+        showRelicConfirmPopup(art, acts);
+      });
+    });
+  }
+  function showRelicConfirmPopup(art, acts) {
+    const count = (state.artifacts || []).find(x => x.name === art.name);
+    const remaining = count ? count.count : 0;
+    const box = document.createElement('div');
+    box.className = 'card-inspect swap-popup pop';
+    box.innerHTML = `
+      <div class="ci-inner swap-popup-inner">
+        <div class="relic-confirm-icon">${art.icon}</div>
+        <div class="swap-popup-title">${art.name}</div>
+        <div class="swap-popup-sub">${ARTIFACT_TIER_LABEL[art.tier]} · ×${remaining} remaining</div>
+        <div class="relic-confirm-desc">${art.desc}</div>
+        <div class="swap-popup-btns">
+          <button class="swap-action-btn primary" id="relicConfirmUse">Use Relic</button>
+          <button class="swap-action-btn" id="relicConfirmCancel">Cancel</button>
+        </div>
+      </div>`;
+    document.body.appendChild(box);
+    requestAnimationFrame(() => box.classList.add('pop'));
+    const close = () => { box.classList.remove('pop'); setTimeout(() => box.remove(), 200); };
+    box.addEventListener('click', ev => { if (ev.target === box) close(); });
+    box.querySelector('#relicConfirmUse').addEventListener('click', ev => {
+      ev.stopPropagation(); close();
+      clearSwapCards();
+      disableActs(acts);
+      useArtifactInBattle(art);
+    });
+    box.querySelector('#relicConfirmCancel').addEventListener('click', ev => {
+      ev.stopPropagation(); close();
+    });
+  }
+  function clearRelicCards() {
+    const pRelicsEl = document.getElementById('pRelics');
+    if (!pRelicsEl) return;
+    pRelicsEl.querySelectorAll('.relic-card').forEach(c => { c.classList.remove('swap-tappable'); if (c._relicHandler) { c.removeEventListener('click', c._relicHandler); c._relicHandler = null; } });
+  }
   function playerTurn() {
     if (!battleActive || matchFinished) return;
     focusTurn.textContent = 'YOUR TURN';
@@ -848,44 +1045,10 @@ function startFight() {
     }
     beginEngagement();
     const acts = $('#arenaActions');
-    const pc = playerSquad[pActive];
-    const relics = battleArtifacts(state.artifacts, BATTLE_ART_CAP - playerRelicsUsed)
-      .filter(entry => {
-        const art = findArtifact(entry.name);
-        return art && (art.effect !== 'revive' || bestReviveIndex(pAlive, playerSquad, botSquad[bActive]) >= 0);
-      });
-    acts.innerHTML = '<div class="action-header"><span class="turn-prompt">Your move</span><span class="action-tip">Exploit the matchup or set up a relic</span></div><div class="action-buttons"><button class="primary" id="atkBtn">⚔️ Attack</button><button class="action-toggle" id="switchToggle">↔ Switch Cards</button>' + (relics.length ? '<button class="action-toggle" id="relicToggle">✦ Use Relic</button>' : '') + '</div>';
-    $('#atkBtn').addEventListener('click', () => { disableActs(acts); playerAttack(); });
-    const switchPanel = document.createElement('div');
-    switchPanel.className = 'action-options hidden';
-    switchPanel.id = 'switchOptions';
-    aliveIndexes(pAlive).filter(i => i !== pActive).forEach(i => {
-      const b = document.createElement('button');
-      b.className = 'switch-btn';
-      b.innerHTML = `↔ ${elementInfo(playerSquad[i].element).icon} ${playerSquad[i].name}`;
-      b.addEventListener('click', () => { disableActs(acts); switchPlayer(i); });
-      switchPanel.appendChild(b);
-    });
-    acts.appendChild(switchPanel);
-    $('#switchToggle').addEventListener('click', () => switchPanel.classList.toggle('hidden'));
-    if (relics.length) {
-       const relicPanel = document.createElement('div');
-       relicPanel.className = 'action-options hidden';
-       relicPanel.id = 'relicOptions';
-       relics.forEach(a => {
-         const art = findArtifact(a.name);
-         if (!art) return;
-         const b = document.createElement('button');
-         b.className = 'art-btn tier-' + art.tier;
-         b.title = `${art.name} ×${a.count}`;
-         b.setAttribute('aria-label', `${art.name} ×${a.count}: ${art.desc}`);
-         b.innerHTML = `<span class="at-ico">${art.icon}</span><span class="at-count">×${a.count}</span>`;
-         b.addEventListener('click', () => { disableActs(acts); useArtifactInBattle(art); });
-         relicPanel.appendChild(b);
-       });
-      acts.appendChild(relicPanel);
-      $('#relicToggle').addEventListener('click', () => relicPanel.classList.toggle('hidden'));
-    }
+    acts.innerHTML = '<div class="action-header"><span class="turn-prompt">Your move</span><span class="action-tip">Tap a card to swap · Tap a relic to use · Attack</span></div><div class="action-buttons"><button class="primary" id="atkBtn">⚔️ Attack</button></div>';
+    $('#atkBtn').addEventListener('click', () => { clearSwapCards(); clearRelicCards(); disableActs(acts); playerAttack(); });
+    bindSwapCards(acts, i => { disableActs(acts); clearRelicCards(); switchPlayer(i); });
+    bindRelicCards(acts);
   }
   function playerAttack() {
     if (!battleActive) return;
@@ -920,6 +1083,7 @@ function startFight() {
     if (art.effect === 'revive' && reviveIndex < 0) { playerTurn(); return; }
     if (!battleActive || !spendArtifact(art.name)) { playerTurn(); return; }
     playerRelicsUsed++;
+    renderDeckRelics();
     const pc = playerSquad[pActive], bc = botSquad[bActive];
     relicPopup(art, 'player');
     if (art.effect === 'revive') {
@@ -1019,7 +1183,7 @@ function startFight() {
     const useArt = (slot, art) => {
       slot.count--;
       if (slot.count <= 0) botArtifacts = botArtifacts.filter(x => x !== slot);
-      showBotArtifacts();
+      renderDeckRelics();
       relicPopup(art, 'bot');
       if (art.effect === 'revive') {
         const targetIndex = bestReviveIndex(bAlive, botSquad, pc);
@@ -1071,6 +1235,8 @@ function startFight() {
     setHP($('#bc' + i), bHP[i], hpOf(botSquad[i]));
   }
   refreshActive();
+  const focusCore = document.querySelector('.focus-core');
+  if (focusCore) focusCore.scrollIntoView({ behavior: 'smooth', block: 'center' });
   startFirstTurn(playerTurn, botTurn);
 }
 

@@ -114,7 +114,7 @@ const GRADE_COLOR = { 10: '#e8c15a', 9: '#5ce8a0', 8: '#7fd4ff', 7: '#c9d3dd', 6
    hit), and only the first 10 prints (#0001–#0010) come out stamped
    1ST EDITION.
    ============================================================ */
-const MAX_SERIAL = 1000;          // serial pool per creature
+const MAX_SERIAL = 9999;          // serial pool per creature+rarity
 const FIRST_ED_MULT = 1.5;        // 1st Edition value multiplier
 
 /* A collector's album is a single page — one slot per card. When the

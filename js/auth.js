@@ -67,23 +67,32 @@ function normalizeState() {
   if (!state || typeof state !== 'object' || Array.isArray(state)) state = freshState();
   state.owned = Array.isArray(state.owned) ? state.owned.filter(o => o && typeof o === 'object') : [];
   if (!state.serialBase || typeof state.serialBase !== 'object') state.serialBase = {};
-  /* old saves tracked a simple per-creature count; new ones keep an
-     array of the serials already handed out for that creature */
+  /* Migrate serialBase from old flat array per-creature to new
+     per-creature+rarity structure. Old format:
+       serialBase[name] = [1,2,3]  or  serialBase[name] = 5
+     New format:
+       serialBase[name] = { bronze: [1,2], silver: [3] } */
   Object.keys(state.serialBase).forEach(k => {
     const v = state.serialBase[k];
-    if (typeof v === 'number') {
-      state.serialBase[k] = Array.from({ length: v }, (_, i) => i + 1);
-    } else if (Array.isArray(v)) {
-      state.serialBase[k] = v.map(Number).filter(n => Number.isInteger(n) && n >= 1 && n <= MAX_SERIAL);
+    if (Array.isArray(v) || typeof v === 'number') {
+      delete state.serialBase[k];
     } else if (v && typeof v === 'object') {
-      state.serialBase[k] = Object.keys(v).map(Number).filter(n => Number.isInteger(n) && n >= 1 && n <= MAX_SERIAL);
-    } else if (!Array.isArray(v)) {
-      state.serialBase[k] = [];
+      Object.keys(v).forEach(rk => {
+        const rv = v[rk];
+        if (typeof rv === 'number') {
+          v[rk] = Array.from({ length: rv }, (_, i) => i + 1);
+        } else if (Array.isArray(rv)) {
+          v[rk] = rv.map(Number).filter(n => Number.isInteger(n) && n >= 1 && n <= MAX_SERIAL);
+        } else if (rv && typeof rv === 'object') {
+          v[rk] = Object.keys(rv).map(Number).filter(n => Number.isInteger(n) && n >= 1 && n <= MAX_SERIAL);
+        } else {
+          v[rk] = [];
+        }
+      });
     }
   });
   state.owned.forEach(o => {
     if (!o.id) o.id = genId();
-    if (!o.serial) o.serial = mintSerial(o.name);
     if (!('grade' in o)) o.grade = null;
     if (!o.graded) o.graded = false;
     if (!('grading' in o)) o.grading = null;
@@ -97,12 +106,11 @@ function normalizeState() {
     o.favorite = !!o.favorite;
     o.sleeved = !!o.sleeved;
     o.rarity = RANK.includes(o.rarity) ? o.rarity : randomRarity();
-    o.rarityCode = o.rarityCode || mintRarityCode(o.rarity);
     o.stats = normalizeCardStats(findPlayer(o.name), o.stats);
     if (!o.element) o.element = randomElement();
+    o.serial = mintSerial(o.name, o.rarity);
+    o.rarityCode = makeRarityCode(o.rarity, o.serial);
     o.firstEd = isFirstEdition(o.serial);
-    const arr = state.serialBase[o.name];
-    if (Array.isArray(arr) && typeof o.serial === 'number' && !arr.includes(o.serial)) arr.push(o.serial);
   });
   if (typeof state.coins !== 'number') state.coins = STARTING_COINS;
   state.stats = Object.assign({ battles: 0, wins: 0, losses: 0, won: 0, lost: 0, streak: 0 }, state.stats || {});

@@ -108,10 +108,10 @@ function showGradeReveal(o, done) {
   const record = `Record ${wins}W / ${losses}L · Played ${played} time${played === 1 ? '' : 's'}`;
   const title = o.grade === 10 ? 'GEM MINT 10' : (GRADE_FULL[o.grade] + ' ' + o.grade);
   const sub = legend
-    ? `A collector's legend. <b>${o.name}</b> #${String(o.serial).padStart(4, '0')} is now worth ${coin()}<b>${cardValue(p, o)}</b> — ${fmtMult(GRADE_MULT[o.grade])} its ungraded price.<br><small>${record}</small>`
+    ? `A collector's legend. <b>${o.name}</b> ${o.rarityCode || makeRarityCode(o.rarity, o.serial)} is now worth ${coin()}<b>${cardValue(p, o)}</b> — ${fmtMult(GRADE_MULT[o.grade])} its ungraded price.<br><small>${record}</small>`
     : o.grade <= 4
-      ? `Rough. <b>${o.name}</b> #${String(o.serial).padStart(4, '0')} is now worth ${coin()}<b>${cardValue(p, o)}</b> — the lab did it no favours.<br><small>${record}</small>`
-      : `<b>${o.name}</b> #${String(o.serial).padStart(4, '0')} graded ${GRADE_LABEL[o.grade]} — now worth ${coin()}<b>${cardValue(p, o)}</b>.<br><small>${record}</small>`;
+      ? `Rough. <b>${o.name}</b> ${o.rarityCode || makeRarityCode(o.rarity, o.serial)} is now worth ${coin()}<b>${cardValue(p, o)}</b> — the lab did it no favours.<br><small>${record}</small>`
+      : `<b>${o.name}</b> ${o.rarityCode || makeRarityCode(o.rarity, o.serial)} graded ${GRADE_LABEL[o.grade]} — now worth ${coin()}<b>${cardValue(p, o)}</b>.<br><small>${record}</small>`;
   const box = document.createElement('div');
   box.className = 'grade-reveal';
   box.innerHTML = `

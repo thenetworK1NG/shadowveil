@@ -10,6 +10,11 @@ function openPack() {
     pack.classList.add('ripping');
     return;
   }
+  dealing = true;
+  state.coins -= PACK_COST;
+  if (state.coins < 0) state.coins = 0;
+  updateWallet();
+  saveState();
   const items = [0, 1, 2, 3, 4].map(() => {
     if (Math.random() < .35) return { kind: 'artifact', a: ARTIFACTS[Math.floor(Math.random() * ARTIFACTS.length)] };
     const p = pickCard();
@@ -20,11 +25,8 @@ function openPack() {
     const idx = Math.floor(Math.random() * items.length);
     items[idx] = { kind: 'artifact', a: ARTIFACTS[Math.floor(Math.random() * ARTIFACTS.length)] };
   }
-  state.coins -= PACK_COST;
   state.pendingPack = items;
-  updateWallet();
   saveState();
-  dealing = true;
   hint.textContent = 'Ripping it open…';
   pack.classList.add('ripping');
   setTimeout(() => {

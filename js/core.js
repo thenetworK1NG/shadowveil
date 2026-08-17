@@ -41,37 +41,41 @@ const STARTERS = ['Frost, Hoarfrost Golem', 'Bahar, Jade Oracle', 'Aria, Moonlit
 function genId() { return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8); }
 /* Draw a random unused serial for a creature and mark it used. The
    per-creature pool is tracked as an array of used numbers. */
-function mintSerial(name) {
-  const cur = state.serialBase[name];
+function mintSerial(name, rarity) {
+  rarity = rarity || 'bronze';
+  const pool = state.serialBase[name];
   let used;
-  if (typeof cur === 'number') { // legacy count watermark → claimed serials
-    used = state.serialBase[name] = Array.from({ length: cur }, (_, i) => i + 1);
-  } else if (Array.isArray(cur)) {
-    used = cur;
+  if (!pool || typeof pool !== 'object' || Array.isArray(pool)) {
+    state.serialBase[name] = {};
+    state.serialBase[name][rarity] = [];
+    used = state.serialBase[name][rarity];
+  } else if (!Array.isArray(pool[rarity])) {
+    used = pool[rarity] = [];
   } else {
-    used = state.serialBase[name] = [];
+    used = pool[rarity];
   }
   let s = 1 + Math.floor(Math.random() * MAX_SERIAL);
   let tries = 0;
   while (used.includes(s) && tries < 40) { s = 1 + Math.floor(Math.random() * MAX_SERIAL); tries++; }
-  if (used.includes(s)) { // pool nearly sold out — grab the smallest free number
+  if (used.includes(s)) {
     s = 1;
     while (used.includes(s) && s <= MAX_SERIAL) s++;
   }
   used.push(s);
-  syncSerials(name, used);
+  syncSerials(name, rarity, used);
   return s;
 }
-/* Push the used serial pool for a creature up to Firebase (union
+/* Push the used serial pool for a creature+rarity up to Firebase (union
    merge, so every minted number is claimed exactly once). */
-function syncSerials(name, used) {
+function syncSerials(name, rarity, used) {
+  rarity = rarity || 'bronze';
   if (typeof currentUser !== 'undefined' && currentUser) {
     const db = svDb();
     if (db) {
       const key = name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
       const out = {};
       used.forEach(x => { out[x] = true; });
-      db.ref('shadowveil/serials/' + key)
+      db.ref('shadowveil/serials/' + key + '/' + rarity)
         .transaction(cur => {
           const merged = {};
           if (cur && typeof cur === 'object') Object.keys(cur).forEach(k => { if (cur[k]) merged[k] = true; });
@@ -83,9 +87,9 @@ function syncSerials(name, used) {
 }
 function makeInstance(name, extra) {
   extra = extra || {};
-  const serial = extra.serial || mintSerial(name);
-  const base = findPlayer(name);
   const rarity = extra.rarity || randomRarity();
+  const serial = extra.serial || mintSerial(name, rarity);
+  const base = findPlayer(name);
   const o = {
     id: genId(),
     name,
@@ -94,7 +98,7 @@ function makeInstance(name, extra) {
     grade: extra.grade != null ? extra.grade : null,
     graded: !!extra.graded,
     grading: null,
-    wins: 0, losses: 0, streak: 0, level: 1, xp: 0, favorite: false, sleeved: !!extra.sleeved, rarity, rarityCode: extra.rarityCode || mintRarityCode(rarity), stats: normalizeCardStats(base, extra.stats), element: extra.element || randomElement(),
+    wins: 0, losses: 0, streak: 0, level: 1, xp: 0, favorite: false, sleeved: !!extra.sleeved, rarity, rarityCode: extra.rarityCode || makeRarityCode(rarity, serial), stats: normalizeCardStats(base, extra.stats), element: extra.element || randomElement(),
   };
   Object.keys(extra).forEach(k => { if (extra[k] !== undefined) o[k] = extra[k]; });
   return o;
@@ -127,9 +131,9 @@ function randomRarity() {
   }
   return RANK[0];
 }
-function mintRarityCode(rarity) {
+function makeRarityCode(rarity, serial) {
   const prefix = RARITY_PREFIX[rarity] || 'CARD';
-  return `${prefix} #${String(1 + Math.floor(Math.random() * 9999)).padStart(4, '0')}`;
+  return `${prefix} #${String(serial || 0).padStart(4, '0')}`;
 }
 function normalizeCardStats(base, stats) {
   const fallback = randomCardStats(base);
@@ -156,7 +160,7 @@ try {
     };
   }
 } catch (e) {}
-state.owned.forEach(o => { if (!o.level) o.level = 1; o.level = Math.min(MAX_CARD_LEVEL, Math.max(1, Math.floor(Number(o.level) || 1))); o.xp = Math.min(xpForLevel(MAX_CARD_LEVEL), Math.max(0, Number(o.xp) || xpForLevel(o.level))); o.favorite = !!o.favorite; o.sleeved = !!o.sleeved; o.rarity = RANK.includes(o.rarity) ? o.rarity : randomRarity(); o.rarityCode = o.rarityCode || mintRarityCode(o.rarity); const p = findPlayer(o.name); o.stats = normalizeCardStats(p, o.stats); if (!o.element) o.element = randomElement(); });
+state.owned.forEach(o => { if (!o.level) o.level = 1; o.level = Math.min(MAX_CARD_LEVEL, Math.max(1, Math.floor(Number(o.level) || 1))); o.xp = Math.min(xpForLevel(MAX_CARD_LEVEL), Math.max(0, Number(o.xp) || xpForLevel(o.level))); o.favorite = !!o.favorite; o.sleeved = !!o.sleeved; o.rarity = RANK.includes(o.rarity) ? o.rarity : randomRarity(); o.rarityCode = o.rarityCode || makeRarityCode(o.rarity, o.serial || 0); const p = findPlayer(o.name); o.stats = normalizeCardStats(p, o.stats); if (!o.element) o.element = randomElement(); });
 if (!Array.isArray(state.artifacts)) state.artifacts = [];
 if (!state.serialBase || typeof state.serialBase !== 'object') state.serialBase = {};
 if (!Array.isArray(state.pendingOverflow)) state.pendingOverflow = [];
@@ -166,13 +170,17 @@ function blankState() {
   const carry = {};
   Object.keys(old).forEach(k => {
     const v = old[k];
-    carry[k] = typeof v === 'number'
-      ? Array.from({ length: v }, (_, i) => i + 1)
-      : Array.isArray(v)
-        ? v.slice()
-        : v && typeof v === 'object'
-          ? Object.keys(v).map(Number).filter(n => Number.isInteger(n) && n >= 1 && n <= MAX_SERIAL)
-          : [];
+    if (v && typeof v === 'object' && !Array.isArray(v)) {
+      carry[k] = {};
+      Object.keys(v).forEach(rk => {
+        const rv = v[rk];
+        if (Array.isArray(rv)) {
+          carry[k][rk] = rv.filter(n => Number.isInteger(n) && n >= 1 && n <= MAX_SERIAL);
+        } else {
+          carry[k][rk] = [];
+        }
+      });
+    }
   });
   return { owned: [], coins: STARTING_COINS, stats: { ...DEFAULT_STATS }, artifacts: [], serialBase: carry, pendingPack: null, pendingOverflow: [] };
 }
@@ -251,7 +259,7 @@ function effPlayer(p, o) {
     cunning: stats.cunning + gain,
     arcana: stats.arcana + gain,
     rarity: effRarity(p, lvl, o.rarity),
-    rarityCode: o.rarityCode || p.rarityCode || mintRarityCode(effRarity(p, lvl, o.rarity)),
+    rarityCode: o.rarityCode || p.rarityCode || makeRarityCode(effRarity(p, lvl, o.rarity), o.serial || 0),
     level: lvl,
     element: o.element || p.element || randomElement(),
   };
@@ -366,7 +374,7 @@ function sellCard(id) {
   const val = cardValue(p, o);
   $('#confirmCard').innerHTML = '';
   $('#confirmCard').appendChild(buildCard({ ...effPlayer(p, o), rec: o }, '', true));
-  $('#confirmText').innerHTML = `Sell <b>${p.name}</b> <span class="coin-big">#${String(o.serial).padStart(4, '0')}</span> to the market for <span class="coin-big">${coin()}${val}</span>?`;
+  $('#confirmText').innerHTML = `Sell <b>${p.name}</b> <span class="coin-big">${o.rarityCode || makeRarityCode(o.rarity, o.serial)}</span> to the market for <span class="coin-big">${coin()}${val}</span>?`;
   confirmBox.classList.remove('hidden');
 }
 function confirmSale() {
@@ -394,7 +402,7 @@ function confirmSale() {
   refreshPackHint();
   confirmBox.classList.add('hidden');
   pendingSell = null;
-  flash(`${p.name} #${String(current.serial).padStart(4, '0')} sold — ${coin()}${val} added to your hoard`);
+  flash(`${p.name} ${current.rarityCode || makeRarityCode(current.rarity, current.serial)} sold — ${coin()}${val} added to your hoard`);
   checkBankruptcy();
 }
 function nonFavoriteSellables() {
@@ -680,10 +688,10 @@ function renderCollection() {
     sellUnfavBtn.textContent = count ? `Sell ${count} Non-Favorite${count === 1 ? '' : 's'}` : 'No Non-Favorites';
   }
   const jl = $('#jewelLine');
-  if (jewel) {
+  if (jl && jewel) {
     jl.innerHTML = `Crown Jewel · <b>${jewel.p.name}</b> · ${jewel.o.wins}W ${jewel.o.losses}L · ${coin()}${jewel.v}`;
     jl.classList.remove('hidden');
-  } else {
+  } else if (jl) {
     jl.classList.add('hidden');
   }
   renderArtifacts();
@@ -1013,7 +1021,7 @@ function showCardInspect(p, o, opts) {
       </div>
       <div class="ci-meta">
         <span class="ci-ovr">OVR <b>${ovr(e)}</b></span>
-        <span class="ci-rec">${o.rarityCode || 'CARD #0000'} · #${String(o.serial).padStart(4, '0')} · W <b>${o.wins || 0}</b> L <b>${o.losses || 0}</b></span>
+        <span class="ci-rec">${o.rarityCode || 'CARD #0000'} · W <b>${o.wins || 0}</b> L <b>${o.losses || 0}</b></span>
         <span class="ci-val">${coin()}<b>${val}</b></span>
       </div>
       <div class="ci-grade-row">${gradeBlock}</div>
@@ -1112,12 +1120,11 @@ function cardFront(p) {
         ? `<span class="grade-chip g" style="--gc:${GRADE_COLOR[rec.grade] || '#c9d3dd'}" title="${GRADE_FULL[rec.grade]}">${rec.grade}<em>${GRADE_LABEL[rec.grade]}</em></span>`
         : `<span class="grade-chip ungraded" title="Condition unknown — submit to the Grading Lab">?</span>`
     : `<span class="grade-chip ungraded" title="Condition unknown — submit to the Grading Lab">?</span>`;
-   const serial = `<span class="serial${rec && rec.serial <= 10 ? ' hot' : ''}">#${String(rec && rec.serial ? rec.serial : 0).padStart(4, '0')}</span>`;
   const elem = elementInfo(p.element || (rec && rec.element));
   const firstEd = rec && isFirstEdition(rec.serial)
     ? `<span class="firsted" title="1st Edition print run">1st Edition</span>`
     : '';
-  const rarityCode = (rec && rec.rarityCode) || p.rarityCode || `${RARITY_PREFIX[p.rarity] || 'CARD'} #0000`;
+   const rarityCode = (rec && rec.rarityCode) || p.rarityCode || makeRarityCode(p.rarity, rec && rec.serial ? rec.serial : 0);
   return `<div class="face tcard rare-${p.rarity} evo-${evolution.key}${evolution.capped ? ' god-capped' : ''}" style="--rar:${rarity.color}">
     <div class="card-top">
       <span class="team">${p.realm}</span>
@@ -1141,7 +1148,6 @@ function cardFront(p) {
       ${chip('Arcana', p.arcana)}
     </div>
     <div class="card-foot">
-      ${serial}
       <span class="rarity-code">${rarityCode}</span>
       ${recordLine(p)}
       <span class="value">${coin()}${cardValue(p, rec)}</span>

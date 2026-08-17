@@ -228,7 +228,7 @@ function renderWaiting(box) {
   wait.appendChild(el('p', 'trade-code', tradeCode));
   const offer = document.createElement('p');
   offer.className = 'trade-offer-line';
-  offer.innerHTML = `Send this code to your friend — they enter it, pick their card, and you both confirm. You're giving <b>${findPlayer(myGive.name).name}</b> <span class="serial hot">#${String(myGive.serial).padStart(4, '0')}</span>`;
+  offer.innerHTML = `Send this code to your friend — they enter it, pick their card, and you both confirm. You're giving <b>${findPlayer(myGive.name).name}</b> <span class="serial hot">${myGive.rarityCode || makeRarityCode(myGive.rarity, myGive.serial)}</span>`;
   wait.appendChild(offer);
   const acts = document.createElement('div');
   acts.className = 'actions';
@@ -288,7 +288,7 @@ function renderJoin(box) {
   } else if (tradeStep === 2) {
     const recv = document.createElement('p');
     recv.className = 'pick-hint';
-    recv.innerHTML = `You're receiving <b>${findPlayer(theirGive.name).name}</b> <span class="serial hot">#${String(theirGive.serial).padStart(4, '0')}</span> — pick the card you'll give in return`;
+    recv.innerHTML = `You're receiving <b>${findPlayer(theirGive.name).name}</b> <span class="serial hot">${theirGive.rarityCode || makeRarityCode(theirGive.rarity, theirGive.serial)}</span> — pick the card you'll give in return`;
     box.appendChild(recv);
     if (state.owned.length === 0) {
       box.appendChild(el('p', 'trade-offer-line', 'Your hoard is empty — open a pack first.'));
@@ -444,7 +444,13 @@ function applySwap(give, get) {
   received.firstEd = isFirstEdition(received.serial);
   received.grading = null;
   // claim the incoming serial locally so we never re-mint it ourselves
-  const arr = state.serialBase[get.name] = Array.isArray(state.serialBase[get.name]) ? state.serialBase[get.name] : [];
-  if (typeof get.serial === 'number' && !arr.includes(get.serial)) { arr.push(get.serial); syncSerials(get.name, arr); }
+  const rarity = received.rarity || 'bronze';
+  const pool = state.serialBase[get.name];
+  if (!pool || typeof pool !== 'object' || Array.isArray(pool)) {
+    state.serialBase[get.name] = {};
+    state.serialBase[get.name][rarity] = [];
+  }
+  const arr = state.serialBase[get.name][rarity];
+  if (typeof get.serial === 'number' && !arr.includes(get.serial)) { arr.push(get.serial); syncSerials(get.name, rarity, arr); }
   state.owned.push(received);
 }
