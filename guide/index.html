@@ -78,6 +78,8 @@
   .fact-list li { display: grid; grid-template-columns: 24px 1fr; gap: 9px; align-items: start; color: var(--muted); font-size: 12px; }
   .fact-list li::before { content: "✦"; color: var(--gold); }
   .fact-list b { color: var(--ink); }
+  .rarity-ladder { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 14px; }
+  .rarity-chip { padding: 10px 8px; border: 1px solid var(--rarity, var(--line)); border-radius: 9px; background: color-mix(in srgb, var(--rarity) 10%, transparent); color: var(--rarity); font-size: 9px; font-weight: 800; letter-spacing: 1px; text-align: center; text-transform: uppercase; }
   .battle-layout { display: grid; grid-template-columns: minmax(0, 1fr) 120px minmax(0, 1fr); gap: 12px; align-items: center; }
   .side-board { padding: 16px 12px; border: 1px solid rgba(138,92,246,.35); border-radius: 14px; background: rgba(138,92,246,.08); text-align: center; }
   .side-board.enemy { border-color: rgba(255,80,80,.35); background: rgba(255,80,80,.07); }
@@ -159,7 +161,7 @@
     .section-kicker { font-size: 8px; }
     .hero { grid-template-columns: 1fr; min-height: auto; padding-top: 42px; }
     .hero-visual { min-height: 270px; order: -1; }
-    .quick-grid, .steps, .relic-grid, .tip-grid { grid-template-columns: repeat(2, 1fr); }
+    .quick-grid, .steps, .relic-grid, .tip-grid, .rarity-ladder { grid-template-columns: repeat(2, 1fr); }
     .card-facts, .element-layout, .economy-grid { grid-template-columns: 1fr; }
     .battle-layout { grid-template-columns: 1fr; }
     .element-table { display: block; max-width: 100%; overflow-x: auto; white-space: nowrap; }
@@ -274,6 +276,20 @@
           <p>The three stat bars are the card's current Power, Cunning, and Arcana. OVR is the quick strength read; the individual bars tell you how that strength is shaped.</p>
           <p>Tap an owned card to open its full preview. Tap an enemy card during battle to see its stats, evolution, weak element, strong element, and live matchup numbers.</p>
           <div class="callout"><b>Collector rule:</b> Do not judge a creature name alone. Compare the actual card in your hand.</div>
+        </div>
+      </div>
+      <div class="panel" style="margin-top:14px">
+        <h3>Rarity is instance-based</h3>
+        <p>Any creature can roll any rarity. The tier is stored on the individual card, not locked to the creature template. Every copy also receives its own rarity type code.</p>
+        <div class="rarity-ladder">
+          <span class="rarity-chip" style="--rarity:#b0723a">Common · BRZ</span>
+          <span class="rarity-chip" style="--rarity:#c9d3dd">Uncommon · SLV</span>
+          <span class="rarity-chip" style="--rarity:#e8c15a">Rare · GLD</span>
+          <span class="rarity-chip" style="--rarity:#7fe7ff">Mythic · DIA</span>
+          <span class="rarity-chip" style="--rarity:#ff7de8">Prismatic · PRS</span>
+          <span class="rarity-chip" style="--rarity:#a78bfa">Astral · AST</span>
+          <span class="rarity-chip" style="--rarity:#8b7cff">Void · VOD</span>
+          <span class="rarity-chip" style="--rarity:#fff0a6">Celestial · CEL</span>
         </div>
       </div>
     </section>

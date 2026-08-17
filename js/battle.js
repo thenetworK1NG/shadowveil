@@ -249,7 +249,7 @@ function showBattleCardPreview(card, opponent, side) {
         </div>
         <div class="ci-meta">
           <span class="ci-ovr">OVR <b>${ovr(card)}</b></span>
-          <span class="ci-rec">${cardElement.icon} ${cardElement.label}</span>
+          <span class="ci-rec">${cardElement.icon} ${cardElement.label} · ${card.rarityCode || 'CARD #0000'}</span>
           <span class="ci-val"><b>${isPlayer ? 'Your card' : 'Enemy'}</b></span>
         </div>
         <div class="battle-vulnerabilities">
@@ -389,13 +389,14 @@ function buildBotSquad() {
      fresh level-one opponents. They are never written to the collection. */
   const virtualCard = (base, target) => {
     const level = Math.max(1, Math.floor(Number(target.level) || 1));
-    const card = effPlayer(base, { level, stats: randomCardStats(base), element: botElementFor(target) });
+    const rarity = randomRarity();
+    const card = effPlayer(base, { level, rarity, rarityCode: mintRarityCode(rarity), stats: randomCardStats(base), element: botElementFor(target) });
     card.botLevel = level;
     return card;
   };
   const choiceScore = (base, candidate, target) => {
     const distance = Math.abs(ovr(candidate) - ovr(target));
-    const rarity = Math.max(0, RANK.indexOf(base.rarity)) * 0.8;
+    const rarity = Math.max(0, RANK.indexOf(candidate.rarity)) * 0.8;
     const matchup = elementMultiplier(candidate, target).multiplier;
     const elementPlan = matchup > 1 ? 28 : matchup < 1 ? -22 : 0;
     /* Stay close enough to the player's level for a fair fight, then prefer
@@ -449,7 +450,8 @@ function buildBotRedemption(targets, squad) {
   const target = targets.slice().sort((a, b) => ovr(b) - ovr(a))[0];
   const base = PLAYERS.filter(p => !used.has(p.name)).sort((a, b) => ovr(b) - ovr(a))[0] || PLAYERS[0];
   const level = Math.max(1, Math.floor(Number(target.level) || 1));
-  const card = effPlayer(base, { level, stats: randomCardStats(base), element: botElementFor(target) });
+  const rarity = randomRarity();
+  const card = effPlayer(base, { level, rarity, rarityCode: mintRarityCode(rarity), stats: randomCardStats(base), element: botElementFor(target) });
   card.botLevel = level;
   card.redemption = true;
   return card;
@@ -1140,6 +1142,7 @@ function triggerBankruptcy() {
 
 function finishMatch(rounds, pScore, bScore, matchWon, pCombat, bCombat, redemptionUsed) {
   const st = state.stats;
+  const matchUser = currentUser && currentUser.user;
 
   const shifts = [];
   const record = (o, won) => {
@@ -1165,7 +1168,8 @@ function finishMatch(rounds, pScore, bScore, matchWon, pCombat, bCombat, redempt
   let overflowPending = null;
   if (matchWon) {
     const bestBot = [...botSquad].sort((a, b) => ovr(b) - ovr(a))[0];
-    const inst = makeInstance(bestBot.name, { level: bestBot.botLevel || 1, wins: 1, streak: 1, stats: bestBot.stats, element: bestBot.element });
+    const rewardLevel = bestBot.botLevel || bestBot.level || 1;
+    const inst = makeInstance(bestBot.name, { level: rewardLevel, xp: xpForLevel(rewardLevel), wins: 1, streak: 1, stats: bestBot.stats, rarity: bestBot.rarity, rarityCode: bestBot.rarityCode, element: bestBot.element });
     if (hoardFull()) {
       // album page is full — the win is real but the slot is decided after the reward
       overflowPending = { instance: inst, player: bestBot };
@@ -1208,6 +1212,10 @@ function finishMatch(rounds, pScore, bScore, matchWon, pCombat, bCombat, redempt
   st.lost += surrendered ? 1 : 0;
   st.streak = matchWon ? st.streak + 1 : 0;
 
+  if (overflowPending) {
+    state.pendingOverflow = [{ instance: overflowPending.instance, playerName: overflowPending.player.name }];
+  }
+
   saveState();
   updateWallet();
   refreshPackHint();
@@ -1235,6 +1243,7 @@ function finishMatch(rounds, pScore, bScore, matchWon, pCombat, bCombat, redempt
 
   if (overflowPending) {
     setTimeout(() => {
+      if (matchUser && (!currentUser || currentUser.user !== matchUser)) return;
       flash(`The album page is full (${MAX_HOARD}/${MAX_HOARD}) — decide what happens to your win.`);
       resolveHoardOverflow([overflowPending], () => {
         overflowPending = null;
@@ -1244,7 +1253,10 @@ function finishMatch(rounds, pScore, bScore, matchWon, pCombat, bCombat, redempt
     }, 3600);
   }
 
-  shifts.forEach((s, i) => setTimeout(() => showLevelToast(s), 3600 + i * 2800));
+  shifts.forEach((s, i) => setTimeout(() => {
+    if (matchUser && (!currentUser || currentUser.user !== matchUser)) return;
+    showLevelToast(s);
+  }, 3600 + i * 2800));
 
   resultBanner.classList.remove('hidden');
   // match report

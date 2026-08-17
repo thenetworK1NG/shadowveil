@@ -57,14 +57,19 @@
    { name: 'Wren, Twilight Sprite',     realm: 'Duskwold',       img: '', power: 80, cunning: 5,  arcana: 83, rarity: 'bronze'  },
 ];
 
-const RARITY = {
-  bronze:  { color: '#b0723a', glow: 'rgba(176,114,58,.35)',   weight: 40 },
-  silver:  { color: '#c9d3dd', glow: 'rgba(201,211,221,.35)',  weight: 30 },
-  gold:    { color: '#e8c15a', glow: 'rgba(232,193,90,.45)',   weight: 22 },
-  diamond: { color: '#7fe7ff', glow: 'rgba(127,231,255,.55)',  weight: 8  },
-};
-const RANK = ['bronze', 'silver', 'gold', 'diamond'];
-const RARITY_LABEL = { bronze: 'Common', silver: 'Uncommon', gold: 'Rare', diamond: 'Mythic' };
+  const RARITY = {
+  bronze:    { color: '#b0723a', glow: 'rgba(176,114,58,.35)',   weight: 38 },
+  silver:    { color: '#c9d3dd', glow: 'rgba(201,211,221,.35)',  weight: 28 },
+  gold:      { color: '#e8c15a', glow: 'rgba(232,193,90,.45)',   weight: 18 },
+  diamond:   { color: '#7fe7ff', glow: 'rgba(127,231,255,.55)',  weight: 9  },
+  prismatic: { color: '#ff7de8', glow: 'rgba(255,125,232,.58)',  weight: 4  },
+  astral:    { color: '#a78bfa', glow: 'rgba(167,139,250,.62)',  weight: 2  },
+  void:      { color: '#8b7cff', glow: 'rgba(96,72,255,.7)',     weight: .8 },
+  celestial: { color: '#fff0a6', glow: 'rgba(255,240,166,.75)',  weight: .2 },
+ };
+ const RANK = ['bronze', 'silver', 'gold', 'diamond', 'prismatic', 'astral', 'void', 'celestial'];
+ const RARITY_LABEL = { bronze: 'Common', silver: 'Uncommon', gold: 'Rare', diamond: 'Mythic', prismatic: 'Prismatic', astral: 'Astral', void: 'Void', celestial: 'Celestial' };
+ const RARITY_PREFIX = { bronze: 'BRZ', silver: 'SLV', gold: 'GLD', diamond: 'DIA', prismatic: 'PRS', astral: 'AST', void: 'VOD', celestial: 'CEL' };
 
 /* ============================================================
    ARTIFACTS — one-use relics that drop from packs and turn the

@@ -58,6 +58,7 @@ $('#menuHallBtn').addEventListener('click', () => {
 $('#backMenuHall').addEventListener('click', showMenu);
 $('#menuPackBtn').addEventListener('click', () => {
   if (battleLocked()) return;
+  if (typeof resumePendingPack === 'function' && resumePendingPack()) return;
   menu.classList.add('hidden');
   gradingScreen.classList.add('hidden');
   hallScreen.classList.add('hidden');

@@ -85,6 +85,7 @@ function makeInstance(name, extra) {
   extra = extra || {};
   const serial = extra.serial || mintSerial(name);
   const base = findPlayer(name);
+  const rarity = extra.rarity || randomRarity();
   const o = {
     id: genId(),
     name,
@@ -93,7 +94,7 @@ function makeInstance(name, extra) {
     grade: extra.grade != null ? extra.grade : null,
     graded: !!extra.graded,
     grading: null,
-    wins: 0, losses: 0, streak: 0, level: 1, xp: 0, favorite: false, sleeved: !!extra.sleeved, stats: normalizeCardStats(base, extra.stats), element: extra.element || randomElement(),
+    wins: 0, losses: 0, streak: 0, level: 1, xp: 0, favorite: false, sleeved: !!extra.sleeved, rarity, rarityCode: extra.rarityCode || mintRarityCode(rarity), stats: normalizeCardStats(base, extra.stats), element: extra.element || randomElement(),
   };
   Object.keys(extra).forEach(k => { if (extra[k] !== undefined) o[k] = extra[k]; });
   return o;
@@ -117,6 +118,19 @@ function randomCardStats(base) {
   const roll = value => Math.max(1, Math.min(100, Math.round(Number(value || 1) + (Math.random() * 20 - 10))));
   return { power: roll(base.power), cunning: roll(base.cunning), arcana: roll(base.arcana) };
 }
+function randomRarity() {
+  const total = RANK.reduce((sum, rarity) => sum + (RARITY[rarity].weight || 0), 0);
+  let roll = Math.random() * total;
+  for (const rarity of RANK) {
+    roll -= RARITY[rarity].weight || 0;
+    if (roll < 0) return rarity;
+  }
+  return RANK[0];
+}
+function mintRarityCode(rarity) {
+  const prefix = RARITY_PREFIX[rarity] || 'CARD';
+  return `${prefix} #${String(1 + Math.floor(Math.random() * 9999)).padStart(4, '0')}`;
+}
 function normalizeCardStats(base, stats) {
   const fallback = randomCardStats(base);
   const value = key => {
@@ -126,7 +140,7 @@ function normalizeCardStats(base, stats) {
   return { power: value('power'), cunning: value('cunning'), arcana: value('arcana') };
 }
 
-let state = { owned: [], coins: STARTING_COINS, stats: { ...DEFAULT_STATS }, serialBase: {} };
+let state = { owned: [], coins: STARTING_COINS, stats: { ...DEFAULT_STATS }, serialBase: {}, pendingPack: null, pendingOverflow: [] };
 state.owned = STARTERS.map(n => makeInstance(n));
 try {
   const raw = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null');
@@ -137,30 +151,43 @@ try {
       stats: Object.assign({ ...DEFAULT_STATS }, raw.stats || {}),
       artifacts: Array.isArray(raw.artifacts) ? raw.artifacts : [],
       serialBase: raw.serialBase || {},
+      pendingPack: Array.isArray(raw.pendingPack) && raw.pendingPack.length ? raw.pendingPack : null,
+      pendingOverflow: Array.isArray(raw.pendingOverflow) ? raw.pendingOverflow : [],
     };
   }
 } catch (e) {}
-state.owned.forEach(o => { if (!o.level) o.level = 1; o.level = Math.min(MAX_CARD_LEVEL, Math.max(1, Math.floor(Number(o.level) || 1))); o.xp = Math.min(xpForLevel(MAX_CARD_LEVEL), Math.max(0, Number(o.xp) || xpForLevel(o.level))); o.favorite = !!o.favorite; o.sleeved = !!o.sleeved; const p = findPlayer(o.name); o.stats = normalizeCardStats(p, o.stats); if (!o.element) o.element = randomElement(); });
+state.owned.forEach(o => { if (!o.level) o.level = 1; o.level = Math.min(MAX_CARD_LEVEL, Math.max(1, Math.floor(Number(o.level) || 1))); o.xp = Math.min(xpForLevel(MAX_CARD_LEVEL), Math.max(0, Number(o.xp) || xpForLevel(o.level))); o.favorite = !!o.favorite; o.sleeved = !!o.sleeved; o.rarity = RANK.includes(o.rarity) ? o.rarity : randomRarity(); o.rarityCode = o.rarityCode || mintRarityCode(o.rarity); const p = findPlayer(o.name); o.stats = normalizeCardStats(p, o.stats); if (!o.element) o.element = randomElement(); });
 if (!Array.isArray(state.artifacts)) state.artifacts = [];
 if (!state.serialBase || typeof state.serialBase !== 'object') state.serialBase = {};
-/* Brand-new hoard (first play, or after wiping account data). The
-   used serial pools are carried over so a fresh hoard never re-rolls
-   numbers already handed out. */
-function freshState() {
+if (!Array.isArray(state.pendingOverflow)) state.pendingOverflow = [];
+if (!Array.isArray(state.pendingPack) || !state.pendingPack.length) state.pendingPack = null;
+function blankState() {
   const old = (state && state.serialBase) || {};
   const carry = {};
   Object.keys(old).forEach(k => {
     const v = old[k];
-    carry[k] = typeof v === 'number' ? Array.from({ length: v }, (_, i) => i + 1) : Array.isArray(v) ? v.slice() : [];
+    carry[k] = typeof v === 'number'
+      ? Array.from({ length: v }, (_, i) => i + 1)
+      : Array.isArray(v)
+        ? v.slice()
+        : v && typeof v === 'object'
+          ? Object.keys(v).map(Number).filter(n => Number.isInteger(n) && n >= 1 && n <= MAX_SERIAL)
+          : [];
   });
-  if (state) state.serialBase = carry; // starters mint against the carried pools
-  const s = { owned: [], coins: STARTING_COINS, stats: { ...DEFAULT_STATS }, artifacts: [], serialBase: carry };
+  return { owned: [], coins: STARTING_COINS, stats: { ...DEFAULT_STATS }, artifacts: [], serialBase: carry, pendingPack: null, pendingOverflow: [] };
+}
+/* Brand-new hoard (first play, or after wiping account data). The
+   used serial pools are carried over so a fresh hoard never re-rolls
+   numbers already handed out. */
+function freshState() {
+  const s = blankState();
+  state = s;
   s.owned = STARTERS.map(n => makeInstance(n));
   return s;
 }
 function saveKey() { return currentUser ? SAVE_KEY + '-' + currentUser.user : SAVE_KEY; }
 function saveState() {
-  localStorage.setItem(saveKey(), JSON.stringify(state));
+  try { localStorage.setItem(saveKey(), JSON.stringify(state)); } catch (e) {}
   if (window.svPushState) svPushState();
 }
 function setWalletVisible(v) {
@@ -184,6 +211,7 @@ const FB_CONFIG = {
   measurementId: 'G-GJMJJT9636',
 };
 function svDb() {
+  if (window.__fbOffline || (typeof navigator !== 'undefined' && navigator.onLine === false)) return null;
   if (window.__fbDb) return window.__fbDb;
   if (!window.firebase) return null;
   firebase.initializeApp(FB_CONFIG);
@@ -199,18 +227,17 @@ function svDb() {
    value up. This keeps the economy from inflating too fast.
    ============================================================ */
 const PACK_COST = 100;
-const RARITY_BASE = { bronze: 6, silver: 15, gold: 41, diamond: 77 };
+const RARITY_BASE = { bronze: 6, silver: 15, gold: 41, diamond: 77, prismatic: 120, astral: 175, void: 240, celestial: 340 };
 
 /* ============================================================
    LEVELING — cards earn XP from their own duels.
    Wins add XP, losses remove some, and every threshold changes the
-   level. Each level adds +LEVEL_STEP to every stat and promotes the
-   rarity one class up (Common → Uncommon → Rare → Mythic).
+   level. Each level adds +LEVEL_STEP to every stat and unlocks the
+   evolution phases separately from the card's rolled rarity.
    ============================================================ */
 
-function effRarity(p, level) {
-  const tier = Math.min(RANK.length - 1, RANK.indexOf(p.rarity) + (level - 1));
-  return RANK[tier];
+function effRarity(p, level, rarity) {
+  return RANK.includes(rarity) ? rarity : p.rarity;
 }
 function effPlayer(p, o) {
   if (!p || !o) return p;
@@ -223,7 +250,8 @@ function effPlayer(p, o) {
     power: stats.power + gain,
     cunning: stats.cunning + gain,
     arcana: stats.arcana + gain,
-    rarity: effRarity(p, lvl),
+    rarity: effRarity(p, lvl, o.rarity),
+    rarityCode: o.rarityCode || p.rarityCode || mintRarityCode(effRarity(p, lvl, o.rarity)),
     level: lvl,
     element: o.element || p.element || randomElement(),
   };
@@ -300,7 +328,7 @@ function totalHoardValue(list) {
 }
 function isBankrupt() {
   const playable = new Set(state.owned
-    .filter(o => !o.grading && findPlayer(o.name))
+    .filter(o => !o.grading && !o.sleeved && findPlayer(o.name))
     .map(o => o.name));
   if (playable.size >= 4 || state.owned.some(o => o.grading)) return false;
   return (Number(state.coins) || 0) + totalHoardValue() < PACK_COST;
@@ -520,8 +548,8 @@ function renderLevelToast(s, done) {
   const record = state.owned.find(o => o.name === s.name && o.serial === s.serial);
   const beforeEvolution = evolutionForLevel(s.prev);
   const afterEvolution = evolutionForLevel(s.level);
-  const oldStats = effPlayer(p, { level: s.prev, stats: record && record.stats });
-  const newStats = effPlayer(p, { level: s.level, stats: record && record.stats });
+  const oldStats = effPlayer(p, { level: s.prev, rarity: record && record.rarity, rarityCode: record && record.rarityCode, stats: record && record.stats });
+  const newStats = effPlayer(p, { level: s.level, rarity: record && record.rarity, rarityCode: record && record.rarityCode, stats: record && record.stats });
   const stat = (label, key) => `<div class="lt-stat"><span>${label}</span><b>${oldStats[key]}</b><i>→</i><b>${newStats[key]}</b></div>`;
   const box = document.createElement('div');
   box.className = 'level-toast';
@@ -535,8 +563,8 @@ function renderLevelToast(s, done) {
   const cardWrap = document.createElement('div');
   cardWrap.className = 'lt-card';
   cardWrap.appendChild(buildCard({
-    ...effPlayer(p, { level: s.level, stats: record && record.stats, wins: 0, losses: 0, streak: 0 }),
-    rec: { serial: s.serial, wins: 0, losses: 0, streak: 0, level: s.level, stats: record && record.stats },
+    ...effPlayer(p, { level: s.level, rarity: record && record.rarity, rarityCode: record && record.rarityCode, stats: record && record.stats, wins: 0, losses: 0, streak: 0 }),
+    rec: { serial: s.serial, wins: 0, losses: 0, streak: 0, level: s.level, rarity: record && record.rarity, rarityCode: record && record.rarityCode, stats: record && record.stats },
   }, 'lt-draw', true));
   box.appendChild(cardWrap);
   document.body.appendChild(box);
@@ -557,7 +585,7 @@ function renderLevelToast(s, done) {
 function crownJewel() {
   let best = null;
   state.owned.forEach(o => {
-    if (o.sleeved) return;
+    if (o.sleeved || o.grading) return;
     const p = findPlayer(o.name);
     if (!p) return;
     const v = cardValue(p, o);
@@ -669,9 +697,19 @@ function renderCollection() {
    ============================================================ */
 let overflowQueue = [];
 let overflowActionBusy = false;
+function overflowStateItem(item) {
+  return item && item.instance && item.player
+    ? { instance: item.instance, playerName: item.player.name }
+    : null;
+}
+function persistOverflowQueue() {
+  state.pendingOverflow = overflowQueue.map(overflowStateItem).filter(Boolean);
+  saveState();
+}
 function resolveHoardOverflow(items, onDone) {
   overflowQueue = items.slice();
   overflowActionBusy = false;
+  persistOverflowQueue();
   processOverflowItem(onDone);
 }
 function closeOverflow() {
@@ -680,9 +718,13 @@ function closeOverflow() {
 }
 function processOverflowItem(onDone) {
   closeOverflow();
-  if (!overflowQueue.length) { onDone && onDone(); return; }
-  const next = overflowQueue.shift();
-  showOverflowCard(next, onDone);
+  if (!overflowQueue.length) {
+    state.pendingOverflow = [];
+    saveState();
+    onDone && onDone();
+    return;
+  }
+  showOverflowCard(overflowQueue[0], onDone);
 }
 function showOverflowCard(item, onDone) {
   overflowActionBusy = false;
@@ -718,7 +760,8 @@ function overflowSell(item, onDone) {
   state.coins += val;
   updateWallet();
   flash(`Sold ${item.instance.name} for ${coin()}${val} — the slot stays free.`);
-  saveState();
+  overflowQueue.shift();
+  persistOverflowQueue();
   processOverflowItem(onDone);
 }
 function overflowCancel(item, onDone) {
@@ -726,7 +769,8 @@ function overflowCancel(item, onDone) {
   overflowActionBusy = true;
   closeOverflow();
   flash(`${item.instance.name} slips away — the page stays full.`);
-  saveState();
+  overflowQueue.shift();
+  persistOverflowQueue();
   processOverflowItem(onDone);
 }
 /* Give up one of your own cards: it's sold for its value, and the new
@@ -748,7 +792,8 @@ function overflowTradeWith(o, item, onDone) {
   state.owned.push(item.instance);
   updateWallet();
   flash(`Traded — ${current.name} sold for ${coin()}${val}, ${item.instance.name} joins the page.`);
-  saveState();
+  overflowQueue.shift();
+  persistOverflowQueue();
   processOverflowItem(onDone);
 }
 function showOverflowTrade(item, onDone) {
@@ -762,7 +807,7 @@ function showOverflowTrade(item, onDone) {
     <div class="svp-actions"><button class="svp-cancel" id="ovfBack">← Back</button></div>`;
   const pick = inner.querySelector('.ovf-pick');
   state.owned.forEach((o, i) => {
-    if (o.sleeved) return;
+    if (o.sleeved || o.grading) return;
     const p = findPlayer(o.name);
     if (!p) return;
     const val = cardValue(p, o);
@@ -774,11 +819,33 @@ function showOverflowTrade(item, onDone) {
     const tag = document.createElement('button');
     tag.className = 'sell-btn trade-tag';
     tag.innerHTML = `Give up · ${coin()}<span class="coin">${val}</span>`;
+    tag.addEventListener('click', () => overflowTradeWith(o, item, onDone));
     wrap.appendChild(card);
     wrap.appendChild(tag);
     pick.appendChild(wrap);
   });
   inner.querySelector('#ovfBack').addEventListener('click', () => showOverflowCard(item, onDone));
+}
+function resumePendingOverflow() {
+  if (overflowQueue.length || document.getElementById('hoardOverflow')) return false;
+  const items = (state.pendingOverflow || []).map(entry => {
+    const instance = entry && entry.instance;
+    const playerName = entry && (entry.playerName || (entry.player && entry.player.name));
+    const player = findPlayer(playerName || (instance && instance.name));
+    return instance && player ? { instance, player } : null;
+  }).filter(Boolean);
+  if (!items.length) {
+    if ((state.pendingOverflow || []).length) {
+      state.pendingOverflow = [];
+      saveState();
+    }
+    return false;
+  }
+  resolveHoardOverflow(items, () => {
+    renderCollection();
+    saveState();
+  });
+  return true;
 }
 
 /* ============================================================
@@ -819,7 +886,9 @@ function publishGallery() {
     id: e.o.id, name: e.o.name, serial: e.o.serial,
     grade: e.o.grade, graded: e.o.graded, grading: !!e.o.grading,
     firstEd: isFirstEdition(e.o.serial), level: e.o.level || 1,
-    wins: e.o.wins || 0, losses: e.o.losses || 0,
+    xp: Number(e.o.xp) || 0, wins: e.o.wins || 0, losses: e.o.losses || 0,
+    streak: e.o.streak || 0, rarity: e.o.rarity, rarityCode: e.o.rarityCode,
+    stats: e.o.stats, element: e.o.element,
   }));
   const json = JSON.stringify(payload);
   if (json === lastGalleryPub) return;
@@ -863,12 +932,13 @@ function renderLeaderboard() {
   const medals = ['🥇', '🥈', '🥉', '4', '5'];
   top.forEach((entry, i) => {
     const { o, p } = entry;
+    const rarity = RANK.includes(o.rarity) ? o.rarity : p.rarity;
     const row = document.createElement('div');
     row.className = 'lb-row' + (i === 0 ? ' first' : '');
     row.innerHTML = `
       <span class="lb-rank${i === 0 ? ' gold' : ''}">${medals[i]}</span>
-      <div class="lb-info">
-        <span class="lb-tier rare-${p.rarity}">${RARITY_LABEL[p.rarity]}</span>
+       <div class="lb-info">
+         <span class="lb-tier rare-${rarity}">${RARITY_LABEL[rarity]}</span>
         <span class="lb-name">${p.name}</span>
       </div>
       <span class="lb-val">${coin()}<b>${entry.v}</b></span>`;
@@ -943,7 +1013,7 @@ function showCardInspect(p, o, opts) {
       </div>
       <div class="ci-meta">
         <span class="ci-ovr">OVR <b>${ovr(e)}</b></span>
-        <span class="ci-rec">#${String(o.serial).padStart(4, '0')} · W <b>${o.wins || 0}</b> L <b>${o.losses || 0}</b></span>
+        <span class="ci-rec">${o.rarityCode || 'CARD #0000'} · #${String(o.serial).padStart(4, '0')} · W <b>${o.wins || 0}</b> L <b>${o.losses || 0}</b></span>
         <span class="ci-val">${coin()}<b>${val}</b></span>
       </div>
       <div class="ci-grade-row">${gradeBlock}</div>
@@ -997,11 +1067,7 @@ function showCardInspect(p, o, opts) {
 }
 
 function pickCard() {
-  const r = Math.random() * 100;
-  let acc = 0, rarity = 'bronze';
-  for (const key of RANK) { acc += RARITY[key].weight; if (r < acc) { rarity = key; break; } }
-  const pool = PLAYERS.filter(p => p.rarity === rarity);
-  return pool[Math.floor(Math.random() * pool.length)];
+  return PLAYERS[Math.floor(Math.random() * PLAYERS.length)];
 }
 
 /* --- photo fallback: if an image fails to load, drop it and show the neutral backdrop --- */
@@ -1051,6 +1117,7 @@ function cardFront(p) {
   const firstEd = rec && isFirstEdition(rec.serial)
     ? `<span class="firsted" title="1st Edition print run">1st Edition</span>`
     : '';
+  const rarityCode = (rec && rec.rarityCode) || p.rarityCode || `${RARITY_PREFIX[p.rarity] || 'CARD'} #0000`;
   return `<div class="face tcard rare-${p.rarity} evo-${evolution.key}${evolution.capped ? ' god-capped' : ''}" style="--rar:${rarity.color}">
     <div class="card-top">
       <span class="team">${p.realm}</span>
@@ -1075,6 +1142,7 @@ function cardFront(p) {
     </div>
     <div class="card-foot">
       ${serial}
+      <span class="rarity-code">${rarityCode}</span>
       ${recordLine(p)}
       <span class="value">${coin()}${cardValue(p, rec)}</span>
     </div>

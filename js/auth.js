@@ -4,11 +4,18 @@
    each holds a salted password hash plus that player's hoard.
    ============================================================ */
 const SESSION_KEY = 'shadowveil-session';
+const LOCAL_ACCOUNTS_KEY = 'shadowveil-local-accounts';
 let pushTimer = null;
 
 function safeParse(s) { try { return JSON.parse(s); } catch (e) { return null; } }
 function sanitizeUser(u) { return (u || '').trim().toLowerCase().replace(/[^a-z0-9_.]/g, ''); }
 function userPath(u) { return 'shadowveil/users/' + u; }
+function localAccounts() { return safeParse(localStorage.getItem(LOCAL_ACCOUNTS_KEY) || '{}') || {}; }
+function saveLocalAccount(user, record) {
+  const accounts = localAccounts();
+  accounts[user] = record;
+  try { localStorage.setItem(LOCAL_ACCOUNTS_KEY, JSON.stringify(accounts)); } catch (e) {}
+}
 function randHex(len) {
   const a = new Uint8Array(len);
   if (window.crypto && crypto.getRandomValues) crypto.getRandomValues(a);
@@ -45,15 +52,20 @@ function svPushState() {
   if (!currentUser) return;
   const db = svDb();
   if (!db) return;
+  const user = currentUser;
+  const snapshot = JSON.parse(JSON.stringify(state));
   clearTimeout(pushTimer);
   pushTimer = setTimeout(() => {
-    db.ref(userPath(currentUser.user) + '/state').set(JSON.parse(JSON.stringify(state)))
+    pushTimer = null;
+    if (currentUser !== user) return;
+    db.ref(userPath(user.user) + '/state').set(snapshot)
       .then(() => {}).catch(() => {});
   }, 350);
 }
 
 function normalizeState() {
-  state.owned = Array.isArray(state.owned) ? state.owned : [];
+  if (!state || typeof state !== 'object' || Array.isArray(state)) state = freshState();
+  state.owned = Array.isArray(state.owned) ? state.owned.filter(o => o && typeof o === 'object') : [];
   if (!state.serialBase || typeof state.serialBase !== 'object') state.serialBase = {};
   /* old saves tracked a simple per-creature count; new ones keep an
      array of the serials already handed out for that creature */
@@ -61,6 +73,10 @@ function normalizeState() {
     const v = state.serialBase[k];
     if (typeof v === 'number') {
       state.serialBase[k] = Array.from({ length: v }, (_, i) => i + 1);
+    } else if (Array.isArray(v)) {
+      state.serialBase[k] = v.map(Number).filter(n => Number.isInteger(n) && n >= 1 && n <= MAX_SERIAL);
+    } else if (v && typeof v === 'object') {
+      state.serialBase[k] = Object.keys(v).map(Number).filter(n => Number.isInteger(n) && n >= 1 && n <= MAX_SERIAL);
     } else if (!Array.isArray(v)) {
       state.serialBase[k] = [];
     }
@@ -80,6 +96,8 @@ function normalizeState() {
     o.xp = Math.min(xpForLevel(MAX_CARD_LEVEL), Math.max(0, o.xp));
     o.favorite = !!o.favorite;
     o.sleeved = !!o.sleeved;
+    o.rarity = RANK.includes(o.rarity) ? o.rarity : randomRarity();
+    o.rarityCode = o.rarityCode || mintRarityCode(o.rarity);
     o.stats = normalizeCardStats(findPlayer(o.name), o.stats);
     if (!o.element) o.element = randomElement();
     o.firstEd = isFirstEdition(o.serial);
@@ -89,18 +107,24 @@ function normalizeState() {
   if (typeof state.coins !== 'number') state.coins = STARTING_COINS;
   state.stats = Object.assign({ battles: 0, wins: 0, losses: 0, won: 0, lost: 0, streak: 0 }, state.stats || {});
   if (!Array.isArray(state.artifacts)) state.artifacts = [];
+  if (!Array.isArray(state.pendingOverflow)) state.pendingOverflow = [];
+  if (!Array.isArray(state.pendingPack) || !state.pendingPack.length) state.pendingPack = null;
 }
 function renderAll() { renderCollection(); updateWallet(); refreshPackHint(); }
 
 async function enterGame(user, hash) {
   currentUser = { user, hash };
   localStorage.setItem(SESSION_KEY, JSON.stringify({ user, hash }));
+  if (typeof lastGalleryPub !== 'undefined') lastGalleryPub = null;
+  // Never let a missing remote save inherit the previous account in memory.
+  state = blankState();
   const remote = await dbGet(userPath(user) + '/state');
   if (remote) {
     state = remote;
   } else {
     const cached = safeParse(localStorage.getItem(saveKey()));
     if (cached) state = cached;
+    else state = freshState();
   }
   // adopt any globally-claimed serials so a low # stays rare everywhere
   const serials = await dbGet('shadowveil/serials');
@@ -118,36 +142,62 @@ async function enterGame(user, hash) {
   normalizeState();
   hideAuth();
   renderAll();
-  svPushState();
+  saveState();
   if (typeof watchLeaderboard === 'function') watchLeaderboard();
-  if (typeof triggerBankruptcy === 'function' && isBankrupt()) triggerBankruptcy();
+  const resumedPack = typeof resumePendingPack === 'function' && resumePendingPack();
+  if (!resumedPack && typeof resumePendingOverflow === 'function') resumePendingOverflow();
+  if (!state.pendingPack && !(state.pendingOverflow || []).length && typeof triggerBankruptcy === 'function' && isBankrupt()) triggerBankruptcy();
 }
 
 async function register(user, pw) {
   const db = svDb();
-  if (!db) throw new Error('Can\'t reach the account server — check your connection.');
   const salt = randHex(16);
   const hash = await hashPassword(salt + ':' + pw);
+  if (!db) {
+    const accounts = localAccounts();
+    if (accounts[user]) throw new Error('That name is already taken on this device.');
+    saveLocalAccount(user, { salt, hash, created: Date.now() });
+    await enterGame(user, hash);
+    return;
+  }
   const ref = db.ref(userPath(user));
   const exists = await dbGet(userPath(user));
   if (exists) throw new Error('That name is already taken.');
   await ref.set({ salt, hash, created: Date.now() });
+  saveLocalAccount(user, { salt, hash, created: Date.now() });
   await enterGame(user, hash);
 }
 async function login(user, pw) {
+  const db = svDb();
+  if (!db) {
+    const rec = localAccounts()[user];
+    if (!rec || !rec.hash) throw new Error('No offline account with that name.');
+    const hash = await hashPassword(rec.salt + ':' + pw);
+    if (hash !== rec.hash) throw new Error('Wrong password.');
+    await enterGame(user, hash);
+    return;
+  }
   const rec = await dbGet(userPath(user));
   if (!rec || !rec.hash) throw new Error('No account with that name.');
   const hash = await hashPassword(rec.salt + ':' + pw);
   if (hash !== rec.hash) throw new Error('Wrong password.');
+  saveLocalAccount(user, { salt: rec.salt, hash: rec.hash, created: rec.created });
   await enterGame(user, hash);
 }
 async function verifySession(user, hash) {
+  const db = svDb();
+  if (!db) {
+    const local = localAccounts()[user];
+    return !!((local && local.hash === hash) || localStorage.getItem(SAVE_KEY + '-' + user));
+  }
   const rec = await dbGet(userPath(user));
   if (!rec) return false;
   return rec.hash === hash;
 }
 function logout() {
   if (typeof battleActive !== 'undefined' && battleActive) return;
+  clearTimeout(pushTimer);
+  pushTimer = null;
   localStorage.removeItem(SESSION_KEY);
   currentUser = null;
   if (typeof unwatchLeaderboard === 'function') unwatchLeaderboard();
@@ -233,7 +283,7 @@ function openClearAccountPopup() {
   showPopup({
     icon: '☠️',
     title: 'Erase your hoard?',
-    sub: 'Every card, serial, grade, coin and battle record on this account is wiped forever — hold the button to confirm. This cannot be undone.',
+     sub: 'Every card, grade, coin and battle record on this account is wiped forever. Issued serial numbers stay reserved so print runs remain unique — hold the button to confirm. This cannot be undone.',
     confirmLabel: 'Hold to erase',
     holdMs: 1500,
     onConfirm: clearAccountData,
@@ -243,7 +293,9 @@ function openClearAccountPopup() {
 function clearAccountData() {
   if (typeof battleActive !== 'undefined' && battleActive) return;
   state = freshState();
-  saveState();
+  clearTimeout(pushTimer);
+  pushTimer = null;
+  try { localStorage.setItem(saveKey(), JSON.stringify(state)); } catch (e) {}
   if (currentUser) {
     const db = svDb();
     if (db) db.ref(userPath(currentUser.user) + '/state').remove().catch(() => {});

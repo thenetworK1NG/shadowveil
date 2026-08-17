@@ -10,7 +10,18 @@ function openPack() {
     pack.classList.add('ripping');
     return;
   }
+  const items = [0, 1, 2, 3, 4].map(() => {
+    if (Math.random() < .35) return { kind: 'artifact', a: ARTIFACTS[Math.floor(Math.random() * ARTIFACTS.length)] };
+    const p = pickCard();
+    return { kind: 'creature', p, inst: makeInstance(p.name) };
+  });
+  // every pack hides at least one relic
+  if (!items.some(i => i.kind === 'artifact')) {
+    const idx = Math.floor(Math.random() * items.length);
+    items[idx] = { kind: 'artifact', a: ARTIFACTS[Math.floor(Math.random() * ARTIFACTS.length)] };
+  }
   state.coins -= PACK_COST;
+  state.pendingPack = items;
   updateWallet();
   saveState();
   dealing = true;
@@ -21,37 +32,8 @@ function openPack() {
     pack.classList.add('burst');
     setTimeout(() => { packZone.classList.add('hidden'); fan.classList.remove('hidden'); }, 420);
 
-    const items = [0, 1, 2, 3, 4].map(() => {
-      if (Math.random() < .35) return { kind: 'artifact', a: ARTIFACTS[Math.floor(Math.random() * ARTIFACTS.length)] };
-      const p = pickCard();
-      return { kind: 'creature', p, inst: makeInstance(p.name) };
-    });
-    // every pack hides at least one relic
-    if (!items.some(i => i.kind === 'artifact')) {
-      const idx = Math.floor(Math.random() * items.length);
-      items[idx] = { kind: 'artifact', a: ARTIFACTS[Math.floor(Math.random() * ARTIFACTS.length)] };
-    }
     dealt = items;
-    // responsive fan — fit all five inside the viewport on any screen
-    const vw = document.documentElement.clientWidth;
-    const pad = 8;
-    const cw = Math.min(200, Math.max(110, Math.floor((vw - pad * 2) / 2.5)));
-    const ch = Math.round(cw * 1.45);
-    const step = (vw - pad * 2 - cw) / 4;
-    const rotBase = cw < 180 ? 4 : 5;
-    fan.style.height = (ch + 130) + 'px';
-    items.forEach((item, i) => {
-      const el = item.kind === 'artifact'
-        ? buildArtifactTile(item.a, 'deal-art')
-        : buildCard({ ...item.p, rec: item.inst }, 'deal-card', true);
-      el.style.width = cw + 'px';
-      el.style.height = ch + 'px';
-      el.style.setProperty('--tx', Math.round((i - 2) * step) + 'px');
-      el.style.setProperty('--ty', (Math.abs(i - 2) * 20) + 'px');
-      el.style.setProperty('--rot', ((i - 2) * rotBase) + 'deg');
-      el.style.setProperty('--delay', (i * .16 + .2) + 's');
-      fan.appendChild(el);
-    });
+    layoutDealFan(items);
 
     // flip each card over, animate stat bars, sparkle rares & relics
     setTimeout(() => {
@@ -76,6 +58,30 @@ function openPack() {
       }, items.length * 260 + 900);
     }, 650);
   }, 520);
+}
+
+function layoutDealFan(items) {
+  fan.innerHTML = '';
+  // responsive fan — fit all five inside the viewport on any screen
+  const vw = document.documentElement.clientWidth;
+  const pad = 8;
+  const cw = Math.min(200, Math.max(110, Math.floor((vw - pad * 2) / 2.5)));
+  const ch = Math.round(cw * 1.45);
+  const step = (vw - pad * 2 - cw) / 4;
+  const rotBase = cw < 180 ? 4 : 5;
+  fan.style.height = (ch + 130) + 'px';
+  items.forEach((item, i) => {
+    const el = item.kind === 'artifact'
+      ? buildArtifactTile(item.a, 'deal-art')
+      : buildCard({ ...item.p, rec: item.inst }, 'deal-card', true);
+    el.style.width = cw + 'px';
+    el.style.height = ch + 'px';
+    el.style.setProperty('--tx', Math.round((i - 2) * step) + 'px');
+    el.style.setProperty('--ty', (Math.abs(i - 2) * 20) + 'px');
+    el.style.setProperty('--rot', ((i - 2) * rotBase) + 'deg');
+    el.style.setProperty('--delay', (i * .16 + .2) + 's');
+    fan.appendChild(el);
+  });
 }
 
 /* A relic tile — deliberately not a playing card, so an artifact
@@ -185,6 +191,7 @@ function collectDealt() {
   });
   const total = dealt.length;
   dealt = [];
+  state.pendingPack = null;
   fan.innerHTML = '';
   actions.innerHTML = '';
   fan.classList.add('hidden');
@@ -209,6 +216,36 @@ function collectDealt() {
     });
   }
 }
+
+function resumePendingPack() {
+  if (!Array.isArray(state.pendingPack) || !state.pendingPack.length) return false;
+  dealt = state.pendingPack;
+  dealing = false;
+  inspectIdx = -1;
+  closing = false;
+  document.querySelector('.menu').classList.add('hidden');
+  document.getElementById('packScreen').classList.remove('hidden');
+  document.getElementById('arenaScreen').classList.add('hidden');
+  document.getElementById('collectionScreen').classList.add('hidden');
+  document.getElementById('gradingScreen').classList.add('hidden');
+  document.getElementById('leaderboardScreen').classList.add('hidden');
+  document.getElementById('tradeScreen').classList.add('hidden');
+  document.getElementById('settingsScreen').classList.add('hidden');
+  if (typeof setHeaderVisible === 'function') setHeaderVisible(false);
+  if (typeof setWalletVisible === 'function') setWalletVisible(true);
+  packZone.classList.add('hidden');
+  fan.classList.remove('hidden');
+  pack.classList.remove('ripping', 'burst');
+  layoutDealFan(dealt);
+  $$('.deal-card, .deal-art').forEach(el => {
+    const flip = el.querySelector('.flip-inner');
+    if (flip) flip.classList.add('flipped');
+    el.querySelectorAll('.chip i em').forEach(b => b.style.width = b.dataset.v + '%');
+    el.addEventListener('click', startInspection);
+  });
+  hint.textContent = 'Your unopened review is waiting — tap a find to inspect it';
+  return true;
+}
 viewer.addEventListener('click', advanceInspection);
 $('#viewerSkip').addEventListener('click', e => {
   e.stopPropagation();
@@ -216,4 +253,3 @@ $('#viewerSkip').addEventListener('click', e => {
 });
 $('#confirmYes').addEventListener('click', confirmSale);
 $('#confirmNo').addEventListener('click', cancelSale);
-

@@ -23,11 +23,19 @@ function el(tag, cls, text) {
   if (text !== undefined) d.textContent = text;
   return d;
 }
-/* A tradeable snapshot of an owned instance — serial + grade + the
-   1st Edition stamp travel with the card, so a #0002 GEM MT 10 stays
-   special after the swap. */
+/* A tradeable snapshot of an owned instance. The internal id is used to
+   verify the outgoing card, while the card that arrives gets a new local id. */
 function snapInstance(o) {
-  return { id: o.id, name: o.name, serial: o.serial, grade: o.grade, graded: !!o.graded, firstEd: !!o.firstEd };
+  return {
+    id: o.id, name: o.name, serial: o.serial, grade: o.grade,
+    graded: !!o.graded, firstEd: isFirstEdition(o.serial),
+    level: o.level || 1, xp: Number(o.xp) || 0,
+    wins: Number(o.wins) || 0, losses: Number(o.losses) || 0, streak: Number(o.streak) || 0,
+    favorite: !!o.favorite, sleeved: !!o.sleeved,
+    rarity: o.rarity, rarityCode: o.rarityCode,
+    stats: o.stats ? { power: o.stats.power, cunning: o.stats.cunning, arcana: o.stats.arcana } : null,
+    element: o.element,
+  };
 }
 function genCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -39,7 +47,7 @@ function fbInit() {
   if (fbDb) return true;
   if (!window.firebase) { flash('Trading needs internet — the Firebase library did not load.'); return false; }
   const db = svDb();
-  if (!db) return false;
+  if (!db) { flash('Trading needs an internet connection.'); return false; }
   fbDb = db;
   return true;
 }
@@ -61,6 +69,7 @@ function watchRoom() {
     const isHost = tradeMode === 'offer';
     const theirs = isHost ? r.guest : r.host;
     if (r.status === 'done') {
+      if (!r.host || !r.guest || !r.host.confirm || !r.guest.confirm) return;
       if (!theirGive && theirs) theirGive = theirs;
       if (myGive && theirGive) finalize();
       return;
@@ -93,6 +102,7 @@ function cancelTrade() {
   }
 }
 function tradeCleanup() {
+  if (!done && tradeRef && tradeStep > 1) cancelTrade();
   stopWatching();
 }
 function freshTrade(mode) {
@@ -187,7 +197,7 @@ function renderOffer(box) {
 }
 
 function createRoom() {
-  if (!fbInit()) return;
+  if (!fbInit()) { myGive = null; return; }
   tradeBusy = true;
   tradeCode = genCode();
   tradeRef = fbDb.ref(roomPath(tradeCode));
@@ -414,7 +424,25 @@ function showTradeDone(gave, got, gaveRec, gotRec) {
 
 function applySwap(give, get) {
   state.owned = state.owned.filter(x => x.id !== give.id);
-  const received = makeInstance(get.name, { serial: get.serial, grade: get.grade, graded: get.graded, firstEd: get.firstEd, element: get.element });
+  const received = makeInstance(get.name, {
+    serial: get.serial,
+    grade: get.grade,
+    graded: !!get.graded,
+    firstEd: isFirstEdition(get.serial),
+    level: Math.max(1, Math.min(MAX_CARD_LEVEL, Math.floor(Number(get.level) || 1))),
+    xp: Number.isFinite(Number(get.xp)) ? Math.max(0, Number(get.xp)) : 0,
+    wins: Math.max(0, Number(get.wins) || 0),
+    losses: Math.max(0, Number(get.losses) || 0),
+    streak: Math.max(0, Number(get.streak) || 0),
+    favorite: !!get.favorite,
+    sleeved: !!get.sleeved,
+    rarity: RANK.includes(get.rarity) ? get.rarity : randomRarity(),
+    rarityCode: get.rarityCode,
+    stats: get.stats,
+    element: ELEMENTS[get.element] ? get.element : randomElement(),
+  });
+  received.firstEd = isFirstEdition(received.serial);
+  received.grading = null;
   // claim the incoming serial locally so we never re-mint it ourselves
   const arr = state.serialBase[get.name] = Array.isArray(state.serialBase[get.name]) ? state.serialBase[get.name] : [];
   if (typeof get.serial === 'number' && !arr.includes(get.serial)) { arr.push(get.serial); syncSerials(get.name, arr); }
