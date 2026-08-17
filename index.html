@@ -16,6 +16,7 @@
 <link rel="stylesheet" href="css/styles.css">
 <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js" onerror="window.__fbOffline=1"></script>
 <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js" onerror="window.__fbOffline=1"></script>
+<script defer src="js/loader.js"></script>
 <script defer src="js/data.js"></script>
 <script defer src="js/art.js"></script>
 <script defer src="js/core.js"></script>
@@ -29,6 +30,16 @@
 </head>
 <body>
 
+<div class="app-loader" id="appLoader" role="status" aria-live="polite">
+  <div class="loader-core">
+    <div class="loader-orbit"><span>✦</span></div>
+    <p class="loader-kicker">Shadowveil</p>
+    <h1>AWAKENING<br>THE VEIL</h1>
+    <p class="loader-status" id="loaderStatus">Preparing your hoard...</p>
+    <div class="loader-track"><i id="loaderProgress"></i></div>
+    <span class="loader-foot">Loading player data</span>
+  </div>
+</div>
 
 <div class="wallet"><span class="coin-ico"></span><b id="wallet">0</b></div>
 <div class="flash" id="flash"></div>
@@ -126,12 +137,12 @@
 
   <section class="arena hidden" id="arenaScreen">
     <h2>Battle Arena</h2>
-    <p class="sub" id="arenaSub">Pick any three cards from your hoard, then use attacks, elements, relics, or a tactical switch each turn.</p>
+    <p class="sub" id="arenaSub">Pick three battle cards and a hidden redemption card, then use attacks, elements, relics, or a tactical switch each turn.</p>
 
     <!-- squad slots + picker -->
     <div class="squad-bar" id="squadSlots"></div>
     <div class="picker-wrap">
-      <p class="pick-hint">Build your team · choose any three cards</p>
+      <p class="pick-hint">Choose three battle cards and one redemption card</p>
       <div class="element-guide">
         <span>🔥 Fire <b>beats</b> 🌿 Nature <i>· weak to 🌍 Earth</i></span>
         <span>🌿 Nature <b>beats</b> ⚡ Lightning <i>· weak to 🔥 Fire</i></span>
@@ -161,13 +172,13 @@
           <span class="bs-pts" id="themPts">0</span>
         </div>
       </div>
-      <div class="round-ticker" id="roundTicker"><span>R1</span><span>R2</span><span>R3</span></div>
+      <div class="round-ticker" id="roundTicker"><span>R1</span><span>R2</span><span>R3</span><span>R4</span></div>
     </div>
 
     <div class="battle-pit hidden" id="battlePit">
       <div class="battle-board-kicker">
         <span class="live-mark"><i></i> Live duel</span>
-        <span>First coven to three KOs wins</span>
+        <span>First coven to clear all four cards wins</span>
         <span class="board-tip">Element advantage changes the odds</span>
       </div>
       <div class="battle-focus" id="battleFocus">
@@ -177,10 +188,10 @@
               <span class="panel-kicker">Player side</span>
               <strong>Your Coven</strong>
             </div>
-            <span class="panel-badge">3 cards</span>
+              <span class="panel-badge">3 + reserve</span>
           </div>
           <div class="deck-wrap">
-            <div class="deck-head"><span>Your Deck</span><b>Choose a switch</b></div>
+            <div class="deck-head"><span>Your Deck</span><b>Reserve stays hidden</b></div>
             <div class="squad" id="pSquad"></div>
           </div>
           <div class="focus-side yours">
@@ -201,14 +212,14 @@
               <span class="panel-kicker">Opponent side</span>
               <strong>Enemy Coven</strong>
             </div>
-            <span class="panel-badge">3 cards</span>
+              <span class="panel-badge">3 + reserve</span>
           </div>
           <div class="focus-side enemy">
             <span class="focus-label">Enemy Active</span>
             <div id="focusBotCard"></div>
           </div>
           <div class="deck-wrap">
-            <div class="deck-head"><span>Enemy Deck</span><b>Watch their picks</b></div>
+            <div class="deck-head"><span>Enemy Deck</span><b>Reserve stays hidden</b></div>
             <div class="squad" id="bSquad"></div>
           </div>
         </section>
@@ -276,6 +287,14 @@
         <button class="primary hidden" id="installAppBtn">Install App</button>
       </div>
     </div>
+    <div class="settings-card guide-settings-card">
+      <div class="settings-book" aria-hidden="true"></div>
+      <p class="settings-label">Field Guide</p>
+      <p class="settings-sub">Learn the battle rules, element wheel, relics, sleeves, economy, and evolution path.</p>
+      <div class="actions" style="margin-top:22px">
+        <a class="guide-settings-link" href="guide/index.html">Open the guide <span>↗</span></a>
+      </div>
+    </div>
     <div class="settings-card danger-zone">
       <p class="settings-label">Danger Zone</p>
       <p class="settings-sub">Permanently erase every card, serial, grade, coin and battle record on this account. There is no undo.</p>
@@ -286,7 +305,7 @@
   </section>
 </div>
 
-<footer>Shadowveil · a template by JARVIS, ready for your creatures</footer>
+<footer>Shadowveil · a template by JARVIS, ready for your creatures · <a class="guide-link" href="guide/index.html">Field Guide</a></footer>
 
 </body>
 </html>

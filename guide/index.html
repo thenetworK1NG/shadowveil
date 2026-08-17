@@ -1,0 +1,440 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#090611">
+<title>Shadowveil Field Guide</title>
+<style>
+  :root {
+    --bg: #090611;
+    --panel: #110b1c;
+    --panel-2: #171026;
+    --ink: #f4f0fb;
+    --muted: #9f95b7;
+    --line: rgba(255,255,255,.1);
+    --gold: #e8c15a;
+    --violet: #9b75ff;
+    --cyan: #7fe7ff;
+    --green: #72e8b0;
+    --red: #ff8e9a;
+    --max: 1220px;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; color: var(--ink); background:
+      radial-gradient(900px 500px at 90% -10%, rgba(138,92,246,.2), transparent 65%),
+      radial-gradient(700px 480px at 0 90%, rgba(232,193,90,.08), transparent 65%),
+      var(--bg);
+    font-family: "Segoe UI", system-ui, sans-serif; line-height: 1.6;
+  }
+  body::before { content: ""; position: fixed; inset: 0; pointer-events: none; opacity: .035; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='150'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='150' height='150' filter='url(%23n)'/%3E%3C/svg%3E"); }
+  a { color: inherit; }
+  .guide-shell { display: grid; grid-template-columns: 235px minmax(0, 1fr); width: min(var(--max), 100%); min-height: 100vh; margin: 0 auto; }
+  .guide-nav { position: sticky; top: 0; align-self: start; height: 100vh; padding: 30px 22px; border-right: 1px solid var(--line); background: rgba(9,6,17,.7); backdrop-filter: blur(14px); }
+  .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; color: var(--gold); font-size: 12px; font-weight: 800; letter-spacing: 3px; text-decoration: none; text-transform: uppercase; }
+  .brand-mark { display: grid; place-items: center; width: 28px; height: 28px; border: 1px solid var(--gold); border-radius: 50%; box-shadow: 0 0 18px rgba(232,193,90,.28); font-size: 15px; }
+  .nav-label { margin: 22px 0 8px; color: #6f6585; font-size: 9px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; }
+  .guide-nav nav { display: flex; flex-direction: column; gap: 3px; }
+  .guide-nav nav a { padding: 7px 9px; border-radius: 8px; color: var(--muted); font-size: 12px; text-decoration: none; transition: color .2s, background .2s, transform .2s; }
+  .guide-nav nav a:hover { color: var(--ink); background: rgba(138,92,246,.14); transform: translateX(3px); }
+  .back-link { display: inline-flex; margin-top: 25px; padding: 9px 12px; border: 1px solid rgba(232,193,90,.35); border-radius: 999px; color: var(--gold); font-size: 10px; letter-spacing: 1px; text-decoration: none; text-transform: uppercase; }
+  main { min-width: 0; padding: 0 56px 80px; }
+  .hero { position: relative; display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(260px, .95fr); align-items: center; gap: 30px; min-height: 520px; padding: 58px 0 46px; }
+  .eyebrow { color: var(--gold); font-size: 10px; font-weight: 800; letter-spacing: 4px; text-transform: uppercase; }
+  h1 { max-width: 680px; margin: 12px 0 15px; font-size: clamp(42px, 7vw, 86px); letter-spacing: 5px; line-height: .95; background: linear-gradient(105deg, #fff, var(--gold) 42%, #fff 58%, var(--violet)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .hero-lead { max-width: 560px; margin: 0; color: var(--muted); font-size: 17px; letter-spacing: .4px; }
+  .hero-note { display: inline-flex; gap: 8px; align-items: center; margin-top: 24px; padding: 8px 12px; border: 1px solid rgba(232,193,90,.24); border-radius: 999px; background: rgba(232,193,90,.06); color: #d7c8a5; font-size: 11px; }
+  .hero-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+  .guide-cta { display: inline-flex; align-items: center; gap: 8px; padding: 11px 16px; border: 1px solid rgba(232,193,90,.58); border-radius: 999px; background: linear-gradient(120deg, var(--gold), #c9a64a); color: #0a120d; font-size: 10px; font-weight: 800; letter-spacing: 1.5px; text-decoration: none; text-transform: uppercase; box-shadow: 0 8px 24px rgba(232,193,90,.16); }
+  .guide-cta:hover { transform: translateY(-2px); box-shadow: 0 12px 30px rgba(232,193,90,.28); }
+  .guide-cta-icon { font-size: 15px; line-height: 1; }
+  .hero-visual { position: relative; min-height: 350px; display: grid; place-items: center; }
+  .hero-visual svg { width: min(100%, 430px); overflow: visible; filter: drop-shadow(0 25px 45px rgba(0,0,0,.55)); }
+  .quick-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 0 0 70px; }
+  .quick-card { padding: 18px; border: 1px solid var(--line); border-radius: 14px; background: linear-gradient(145deg, rgba(138,92,246,.1), rgba(255,255,255,.025)); }
+  .quick-card b { display: block; margin-bottom: 3px; color: var(--gold); font-size: 22px; line-height: 1; }
+  .quick-card span { color: var(--muted); font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; }
+  section { scroll-margin-top: 30px; margin-top: 74px; }
+  .section-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+  .section-heading > div { min-width: 0; }
+  h2 { margin: 0; color: var(--cream, #f5ead0); font-size: clamp(25px, 4vw, 39px); letter-spacing: 1px; line-height: 1.1; }
+  h2 span { color: var(--gold); }
+  .section-kicker { color: var(--violet); font-size: 9px; font-weight: 800; letter-spacing: 3px; text-transform: uppercase; white-space: nowrap; }
+  .section-intro { max-width: 690px; margin: -7px 0 20px; color: var(--muted); font-size: 13px; }
+  .panel { padding: 22px; border: 1px solid var(--line); border-radius: 16px; background: linear-gradient(145deg, rgba(255,255,255,.045), rgba(255,255,255,.015)); box-shadow: 0 20px 55px rgba(0,0,0,.16); }
+  .panel + .panel { margin-top: 14px; }
+  .panel h3 { margin: 0 0 10px; color: var(--gold); font-size: 15px; letter-spacing: 1px; text-transform: uppercase; }
+  .panel p { margin: 7px 0; color: var(--muted); font-size: 13px; }
+  .panel strong, .panel b { color: var(--ink); }
+  .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; counter-reset: guide; }
+  .step { position: relative; min-height: 175px; padding: 20px 17px 16px; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); }
+  .step::before { counter-increment: guide; content: "0" counter(guide); display: block; margin-bottom: 20px; color: var(--gold); font-size: 26px; font-weight: 800; letter-spacing: 2px; line-height: 1; }
+  .step h3 { margin: 0 0 7px; color: var(--ink); font-size: 14px; }
+  .step p { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.65; }
+  .card-facts { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .fact-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+  .fact-list li { display: grid; grid-template-columns: 24px 1fr; gap: 9px; align-items: start; color: var(--muted); font-size: 12px; }
+  .fact-list li::before { content: "✦"; color: var(--gold); }
+  .fact-list b { color: var(--ink); }
+  .battle-layout { display: grid; grid-template-columns: minmax(0, 1fr) 120px minmax(0, 1fr); gap: 12px; align-items: center; }
+  .side-board { padding: 16px 12px; border: 1px solid rgba(138,92,246,.35); border-radius: 14px; background: rgba(138,92,246,.08); text-align: center; }
+  .side-board.enemy { border-color: rgba(255,80,80,.35); background: rgba(255,80,80,.07); }
+  .side-board h3 { margin: 0 0 12px; color: #c7b6ff; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; }
+  .side-board.enemy h3 { color: #ffaaa0; }
+  .mini-cards { display: flex; justify-content: center; gap: 5px; }
+  .mini-card { width: 44px; aspect-ratio: 2 / 2.9; border: 1px solid rgba(255,255,255,.26); border-radius: 6px; background: linear-gradient(160deg, #38245e, #130a25); box-shadow: 0 7px 15px rgba(0,0,0,.3); }
+  .mini-card.reserve { border-color: var(--gold); background: repeating-linear-gradient(135deg, rgba(232,193,90,.14) 0 3px, rgba(20,10,32,.5) 3px 7px), #180e29; }
+  .active-card { width: 68px; aspect-ratio: 2 / 2.9; margin: 13px auto 0; border: 2px solid var(--gold); border-radius: 9px; background: linear-gradient(155deg, #4b337a, #171027); box-shadow: 0 0 22px rgba(232,193,90,.22); }
+  .active-card.enemy { border-color: #ff8e9a; background: linear-gradient(155deg, #632b43, #1c0b1c); }
+  .board-vs { display: grid; place-items: center; gap: 12px; color: var(--gold); text-align: center; }
+  .board-vs strong { display: grid; place-items: center; width: 64px; height: 64px; border: 1px solid rgba(232,193,90,.65); border-radius: 50%; background: rgba(232,193,90,.08); font-size: 13px; letter-spacing: 2px; }
+  .board-vs span { color: var(--muted); font-size: 9px; letter-spacing: 2px; text-transform: uppercase; }
+  .rule-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
+  .rule { padding: 16px; border-left: 3px solid var(--violet); border-radius: 9px; background: rgba(138,92,246,.07); }
+  .rule.gold { border-left-color: var(--gold); background: rgba(232,193,90,.06); }
+  .rule h3 { margin-bottom: 5px; font-size: 12px; }
+  .rule p { margin: 0; font-size: 11px; }
+  .element-layout { display: grid; grid-template-columns: minmax(220px, .8fr) minmax(0, 1.2fr); gap: 18px; align-items: center; }
+  .element-wheel { display: grid; place-items: center; padding: 10px; }
+  .element-wheel svg { width: min(100%, 300px); }
+  .element-table { width: 100%; border-collapse: collapse; overflow: hidden; border: 1px solid var(--line); border-radius: 12px; font-size: 12px; }
+  .element-table th, .element-table td { padding: 10px 12px; border-bottom: 1px solid var(--line); text-align: left; }
+  .element-table th { color: var(--gold); background: rgba(232,193,90,.07); font-size: 9px; letter-spacing: 2px; text-transform: uppercase; }
+  .element-table tr:last-child td { border-bottom: 0; }
+  .element-table td { color: var(--muted); }
+  .element-table td:first-child { color: var(--ink); font-weight: 700; }
+  .element-table td:nth-child(2) { color: var(--green); }
+  .element-table td:nth-child(3) { color: var(--red); }
+  .callout { margin-top: 14px; padding: 13px 15px; border: 1px solid rgba(127,212,255,.24); border-radius: 10px; background: rgba(127,212,255,.06); color: #bfeaff; font-size: 12px; }
+  .relic-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .relic { min-height: 155px; padding: 15px 12px; border: 1px solid rgba(200,166,106,.32); border-radius: 13px; background: linear-gradient(155deg, rgba(200,166,106,.15), rgba(10,8,20,.75)); }
+  .relic.rare { border-color: rgba(201,139,255,.5); background: linear-gradient(155deg, rgba(201,139,255,.16), rgba(10,8,20,.75)); }
+  .relic-icon { font-size: 27px; line-height: 1; }
+  .relic h3 { margin: 10px 0 5px; color: var(--ink); font-size: 12px; letter-spacing: .5px; }
+  .relic p { margin: 0; color: var(--muted); font-size: 10px; line-height: 1.55; }
+  .relic .relic-tag { display: inline-block; margin-top: 9px; color: var(--gold); font-size: 8px; letter-spacing: 1px; text-transform: uppercase; }
+  .evolution-track { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; position: relative; }
+  .evolution-track::before { content: ""; position: absolute; top: 43px; left: 14%; right: 14%; height: 1px; background: linear-gradient(90deg, var(--violet), var(--gold)); opacity: .55; }
+  .evo-card { position: relative; z-index: 1; min-height: 205px; padding: 18px; border: 1px solid rgba(138,92,246,.35); border-radius: 15px; background: linear-gradient(155deg, rgba(138,92,246,.13), rgba(10,7,18,.85)); }
+  .evo-card.second { border-color: rgba(127,231,255,.5); background: linear-gradient(155deg, rgba(127,231,255,.12), rgba(10,14,28,.85)); }
+  .evo-card.god { border-color: rgba(255,212,95,.65); background: linear-gradient(155deg, rgba(232,193,90,.16), rgba(36,13,31,.88)); box-shadow: 0 0 35px rgba(232,193,90,.12); }
+  .evo-orb { display: grid; place-items: center; width: 50px; height: 50px; margin-bottom: 18px; border: 1px solid var(--violet); border-radius: 50%; background: #1b1032; color: #c9b6ff; font-size: 20px; }
+  .second .evo-orb { border-color: var(--cyan); background: #10283b; color: var(--cyan); }
+  .god .evo-orb { border: 2px solid var(--gold); background: radial-gradient(circle, #ffe9a1, #ac741d); color: #261607; box-shadow: 0 0 22px rgba(232,193,90,.4); }
+  .evo-card h3 { margin: 0 0 4px; color: var(--ink); font-size: 14px; }
+  .evo-card .range { color: var(--gold); font-size: 10px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; }
+  .evo-card p { margin: 12px 0 0; color: var(--muted); font-size: 11px; }
+  .god-tier-note { margin-top: 16px; padding: 14px 16px; border: 1px solid rgba(255,212,95,.35); border-radius: 10px; background: rgba(232,193,90,.07); color: #ffe9a1; font-size: 12px; }
+  .economy-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .money-list { display: grid; gap: 8px; }
+  .money-row { display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 12px; }
+  .money-row:last-child { border-bottom: 0; }
+  .money-row b { color: var(--gold); white-space: nowrap; }
+  .danger-box { border-color: rgba(255,80,120,.35); background: rgba(255,80,120,.06); }
+  .danger-box h3 { color: #ff9aa8; }
+  .tip-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .tip { padding: 14px; border: 1px solid var(--line); border-radius: 11px; background: rgba(255,255,255,.025); }
+  .tip b { display: block; margin-bottom: 4px; color: var(--gold); font-size: 11px; text-transform: uppercase; }
+  .tip span { color: var(--muted); font-size: 11px; }
+  footer { margin-top: 75px; padding-top: 24px; border-top: 1px solid var(--line); color: #6f6585; font-size: 10px; letter-spacing: 2px; text-align: center; text-transform: uppercase; }
+  @media (max-width: 980px) {
+    .guide-shell { display: block; }
+    .guide-nav { position: sticky; z-index: 10; top: 0; width: 100%; height: auto; padding: 13px 18px; border-right: 0; border-bottom: 1px solid var(--line); }
+    .brand { display: inline-flex; margin: 0 20px 0 0; }
+    .nav-label, .back-link { display: none; }
+    .guide-nav nav { display: inline-flex; flex-direction: row; max-width: calc(100% - 170px); overflow-x: auto; vertical-align: middle; }
+    .guide-nav nav a { flex: none; font-size: 10px; }
+    main { padding: 0 30px 65px; }
+  }
+  @media (max-width: 720px) {
+    body { overflow-x: hidden; }
+    .guide-nav nav { display: flex; width: 100%; max-width: none; margin-top: 8px; padding-bottom: 2px; scrollbar-width: thin; }
+    .guide-nav nav::-webkit-scrollbar { height: 4px; }
+    .hero { gap: 8px; }
+    .hero-visual svg { width: min(92vw, 350px); }
+    .hero-lead { font-size: 15px; }
+    .section-heading { align-items: flex-start; flex-direction: column; gap: 6px; }
+    .section-kicker { font-size: 8px; }
+    .hero { grid-template-columns: 1fr; min-height: auto; padding-top: 42px; }
+    .hero-visual { min-height: 270px; order: -1; }
+    .quick-grid, .steps, .relic-grid, .tip-grid { grid-template-columns: repeat(2, 1fr); }
+    .card-facts, .element-layout, .economy-grid { grid-template-columns: 1fr; }
+    .battle-layout { grid-template-columns: 1fr; }
+    .element-table { display: block; max-width: 100%; overflow-x: auto; white-space: nowrap; }
+    .money-row { align-items: flex-start; font-size: 11px; }
+    .board-vs { grid-row: 2; }
+    .element-wheel { order: -1; }
+    .evolution-track { grid-template-columns: 1fr; }
+    .evolution-track::before { top: 12%; bottom: 12%; left: 43px; right: auto; width: 1px; height: auto; }
+    .evo-card { min-height: 150px; padding-left: 88px; }
+    .evo-orb { position: absolute; left: 18px; top: 18px; }
+  }
+  @media (max-width: 460px) {
+    main { padding: 0 16px 50px; }
+    .brand { font-size: 10px; letter-spacing: 2px; }
+    .guide-nav { padding: 11px 12px; }
+    .guide-nav nav { max-width: none; }
+    h1 { font-size: 45px; letter-spacing: 2px; }
+    .hero-note { max-width: 100%; font-size: 10px; }
+    .quick-grid, .steps, .relic-grid, .rule-grid, .tip-grid { grid-template-columns: 1fr; }
+    .panel { padding: 17px 14px; }
+    .element-table { font-size: 10px; }
+    .element-table th, .element-table td { padding: 8px 7px; }
+    .battle-layout { gap: 8px; }
+    .side-board { padding: 14px 8px; }
+    .mini-card { width: 39px; }
+    .active-card { width: 62px; }
+    .evo-card { padding-right: 13px; }
+  }
+</style>
+</head>
+<body>
+<div class="guide-shell" id="top">
+  <aside class="guide-nav">
+    <a class="brand" href="../index.html"><span class="brand-mark">✦</span> Shadowveil</a>
+    <div class="nav-label">Field manual</div>
+    <nav aria-label="Guide sections">
+      <a href="#start">Start here</a>
+      <a href="#cards">Cards</a>
+      <a href="#battle">Battle</a>
+      <a href="#elements">Elements</a>
+      <a href="#relics">Relics</a>
+      <a href="#evolution">Evolution</a>
+      <a href="#economy">Economy</a>
+      <a href="#lab">Grading lab</a>
+      <a href="#trade">Trading</a>
+    </nav>
+    <a class="back-link" href="../index.html">← Return to game</a>
+  </aside>
+
+  <main>
+    <header class="hero">
+      <div>
+        <span class="eyebrow">Shadowveil · Field Guide</span>
+        <h1>COMMAND<br>THE VEIL.</h1>
+        <p class="hero-lead">A collector's manual for binding creatures, reading the element wheel, growing rare cards, and surviving the arena.</p>
+        <span class="hero-note"><b>✦</b> Read the rules. Then make your legend.</span>
+        <div class="hero-actions"><a class="guide-cta" href="../index.html"><span class="guide-cta-icon">←</span> Back to game</a></div>
+      </div>
+      <div class="hero-visual" aria-label="Illustration of the Shadowveil relic wheel">
+        <svg viewBox="0 0 430 380" role="img">
+          <defs>
+            <radialGradient id="heroCore"><stop stop-color="#ffe8a0"/><stop offset=".35" stop-color="#a97cff"/><stop offset="1" stop-color="#171027" stop-opacity="0"/></radialGradient>
+            <linearGradient id="heroRing" x1="0" x2="1"><stop stop-color="#7fe7ff"/><stop offset=".45" stop-color="#e8c15a"/><stop offset="1" stop-color="#9b75ff"/></linearGradient>
+            <filter id="heroGlow"><feGaussianBlur stdDeviation="8"/></filter>
+          </defs>
+          <circle cx="215" cy="190" r="132" fill="none" stroke="#9b75ff" stroke-opacity=".15" stroke-width="22" filter="url(#heroGlow)"/>
+          <circle cx="215" cy="190" r="115" fill="none" stroke="url(#heroRing)" stroke-width="1.5" stroke-dasharray="3 9"/>
+          <circle cx="215" cy="190" r="83" fill="url(#heroCore)" opacity=".9"/>
+          <path d="M215 74 247 142 320 152 267 204 280 278 215 244 150 278 163 204 110 152 183 142Z" fill="#0d081a" stroke="#e8c15a" stroke-width="2"/>
+          <path d="M215 106 235 161 293 164 247 199 261 254 215 221 169 254 183 199 137 164 195 161Z" fill="none" stroke="#7fe7ff" stroke-opacity=".72"/>
+          <circle cx="215" cy="190" r="17" fill="#e8c15a"/>
+          <circle cx="215" cy="190" r="7" fill="#fff4c8"/>
+          <g fill="#f5ead0" font-family="Segoe UI, sans-serif" font-size="10" letter-spacing="2" text-anchor="middle">
+            <text x="215" y="34">SUMMON</text><text x="370" y="194">BATTLE</text><text x="215" y="358">EVOLVE</text><text x="59" y="194">COLLECT</text>
+          </g>
+          <g fill="#e8c15a" font-size="16" text-anchor="middle"><text x="215" y="58">✦</text><text x="350" y="145">◇</text><text x="80" y="145">◇</text></g>
+        </svg>
+      </div>
+    </header>
+
+    <div class="quick-grid" aria-label="Quick facts">
+      <div class="quick-card"><b>100</b><span>Starting gold</span></div>
+      <div class="quick-card"><b>3 + 1</b><span>Battle cards + reserve</span></div>
+      <div class="quick-card"><b>15</b><span>Maximum card level</span></div>
+    </div>
+
+    <section id="start">
+      <div class="section-heading"><div><span class="section-kicker">01 · First steps</span><h2>The <span>90-second</span> loop</h2></div></div>
+      <p class="section-intro">Shadowveil is a tight cycle. Open, bind, train, risk, and rebuild. Every card you keep can become a stronger, more valuable version of itself.</p>
+      <div class="steps">
+        <article class="step"><h3>Open a pack</h3><p>Packs cost 100 gold. Finds can be creatures or one-use relics. A fresh profile begins with four starter creatures.</p></article>
+        <article class="step"><h3>Read your cards</h3><p>Every owned copy has its own rolled stats, element, level, XP, record, serial, and value. Copies of one creature are not identical.</p></article>
+        <article class="step"><h3>Build the reserve</h3><p>Choose three cards for the front line and a fourth Redemption card. No loan cards are added to your battle team.</p></article>
+        <article class="step"><h3>Risk the arena</h3><p>Win to earn gold, XP, and an enemy card. Lose and pay the cost. Protect treasures with sleeves before you gamble.</p></article>
+      </div>
+    </section>
+
+    <section id="cards">
+      <div class="section-heading"><div><span class="section-kicker">02 · Your hoard</span><h2>Cards are <span>individuals</span></h2></div><span class="section-kicker">No copy is guaranteed</span></div>
+      <div class="card-facts">
+        <div class="panel">
+          <h3>What makes a card unique</h3>
+          <ul class="fact-list">
+            <li><span><b>Randomized stats.</b> Power, Cunning, and Arcana roll separately around the creature template. One copy may be a powerhouse while another is clever or arcane.</span></li>
+            <li><span><b>OVR.</b> The average of the three current stats. Level growth is added on top of the card's own base roll.</span></li>
+            <li><span><b>Element.</b> Each instance carries its own element. It controls the damage edge in the arena.</span></li>
+            <li><span><b>Provenance.</b> Serial, first edition status, grade, wins, losses, streak, XP, and value stay with the instance.</span></li>
+          </ul>
+        </div>
+        <div class="panel">
+          <h3>Read the face</h3>
+          <p>The three stat bars are the card's current Power, Cunning, and Arcana. OVR is the quick strength read; the individual bars tell you how that strength is shaped.</p>
+          <p>Tap an owned card to open its full preview. Tap an enemy card during battle to see its stats, evolution, weak element, strong element, and live matchup numbers.</p>
+          <div class="callout"><b>Collector rule:</b> Do not judge a creature name alone. Compare the actual card in your hand.</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="battle">
+      <div class="section-heading"><div><span class="section-kicker">03 · The arena</span><h2>Four cards. <span>One chance.</span></h2></div></div>
+      <p class="section-intro">The enemy builds a response team from the global roster. The battle board shows both decks, the active cards, live element effects, HP, relic statuses, and the next action bar.</p>
+      <div class="panel">
+        <div class="battle-layout" aria-label="Battle board illustration">
+          <div class="side-board"><h3>Your Coven</h3><div class="mini-cards"><i class="mini-card"></i><i class="mini-card"></i><i class="mini-card"></i><i class="mini-card reserve"></i></div><div class="active-card"></div></div>
+          <div class="board-vs"><strong>VS</strong><span>50/50 opening flip</span></div>
+          <div class="side-board enemy"><h3>Enemy Coven</h3><div class="active-card enemy"></div><div class="mini-cards" style="margin-top:13px"><i class="mini-card"></i><i class="mini-card"></i><i class="mini-card"></i><i class="mini-card reserve"></i></div></div>
+        </div>
+      </div>
+      <div class="rule-grid">
+        <div class="rule"><h3>Opening gamble</h3><p>A true 50/50 coin flip chooses the first side. The result is shown, then tap the screen to begin the match.</p></div>
+        <div class="rule gold"><h3>Choose a move</h3><p>Attack, switch to a live card, or spend one relic. The bot gets the same kind of turn after your action.</p></div>
+        <div class="rule"><h3>Redemption reserve</h3><p>Your fourth card stays face-down. It reveals only after your first three cards are gone, then becomes the final fighter.</p></div>
+        <div class="rule gold"><h3>Preview everything</h3><p>Tap your own or enemy cards during the fight for stats and element matchup details without leaving the match.</p></div>
+      </div>
+      <div class="panel">
+        <h3>Redemption scoring</h3>
+        <p>If you win without revealing your Redemption card, all four player cards receive one win and none receive a loss for that match.</p>
+        <p>If Redemption is used and you still win, it receives a bonus equal to half of the match's player wins, rounded up. A used Redemption card is still a real card: its normal battle events are recorded too.</p>
+      </div>
+    </section>
+
+    <section id="elements">
+      <div class="section-heading"><div><span class="section-kicker">04 · Element wheel</span><h2>Find the <span>edge</span></h2></div></div>
+      <p class="section-intro">The listed matchups are the direct rules. Different elements never produce a neutral matchup: unlisted pairs resolve consistently along the wheel order. Same-element cards are even.</p>
+      <div class="element-layout">
+        <div class="element-wheel">
+          <svg viewBox="0 0 320 320" role="img" aria-label="Six element wheel">
+            <defs><linearGradient id="wheel" x1="0" x2="1"><stop stop-color="#ff8e5c"/><stop offset=".3" stop-color="#7fe7ff"/><stop offset=".62" stop-color="#9b75ff"/><stop offset="1" stop-color="#e8c15a"/></linearGradient></defs>
+            <circle cx="160" cy="160" r="120" fill="none" stroke="url(#wheel)" stroke-width="2" stroke-dasharray="4 6"/>
+            <circle cx="160" cy="160" r="72" fill="#120b21" stroke="#e8c15a" stroke-opacity=".45"/>
+            <text x="160" y="155" fill="#f5ead0" text-anchor="middle" font-size="12" letter-spacing="2">ELEMENT</text><text x="160" y="173" fill="#e8c15a" text-anchor="middle" font-size="10" letter-spacing="2">EDGE</text>
+            <g fill="#f5ead0" text-anchor="middle" font-size="20"><text x="160" y="25">🔥</text><text x="277" y="91">🌿</text><text x="277" y="226">⚡</text><text x="160" y="304">💧</text><text x="43" y="226">❄️</text><text x="43" y="91">🌍</text></g>
+            <g stroke="#e8c15a" stroke-opacity=".45" fill="none"><path d="M160 47v43M250 100l-36 22M250 220l-36-22M160 273v-43M70 220l36-22M70 100l36 22"/></g>
+          </svg>
+        </div>
+        <div>
+          <table class="element-table">
+            <thead><tr><th>Element</th><th>Strong against</th><th>Weak against</th></tr></thead>
+            <tbody>
+              <tr><td>🔥 Fire</td><td>🌿 Nature</td><td>🌍 Earth</td></tr>
+              <tr><td>🌿 Nature</td><td>⚡ Lightning</td><td>🔥 Fire</td></tr>
+              <tr><td>⚡ Lightning</td><td>💧 Water</td><td>🌿 Nature</td></tr>
+              <tr><td>💧 Water</td><td>❄️ Ice</td><td>⚡ Lightning</td></tr>
+              <tr><td>❄️ Ice</td><td>🌍 Earth</td><td>💧 Water</td></tr>
+              <tr><td>🌍 Earth</td><td>🔥 Fire</td><td>❄️ Ice</td></tr>
+            </tbody>
+          </table>
+          <div class="callout"><b>Damage rule:</b> an advantage is 1.25× damage and a pressure matchup is 0.8× damage. The battle board converts that edge into a simple visible damage swing beside the hit number.</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="relics">
+      <div class="section-heading"><div><span class="section-kicker">05 · One-use power</span><h2>Relics change <span>turns</span></h2></div><span class="section-kicker">Max 10 uses per battle</span></div>
+      <p class="section-intro">Relics are consumed when played. The enemy can receive a loadout too, and its AI reads your element edge, boosted hit, shields, stuns, and health before choosing a response.</p>
+      <div class="relic-grid">
+        <article class="relic"><span class="relic-icon">🩸</span><h3>Bloodstone Idol</h3><p>Your next attack deals 2× damage.</p><span class="relic-tag">Common · Charge</span></article>
+        <article class="relic"><span class="relic-icon">🌿</span><h3>Verdant Relic</h3><p>Fully restores the active card's health.</p><span class="relic-tag">Common · Recovery</span></article>
+        <article class="relic"><span class="relic-icon">🛡️</span><h3>Aegis Shard</h3><p>Deflects the enemy's next attack.</p><span class="relic-tag">Common · Defense</span></article>
+        <article class="relic rare"><span class="relic-icon">💀</span><h3>Wraith Fang</h3><p>Deals heavy drain damage and heals its user for half.</p><span class="relic-tag">Rare · Drain</span></article>
+        <article class="relic rare"><span class="relic-icon">❄️</span><h3>Frost Sigil</h3><p>The enemy skips its next turn.</p><span class="relic-tag">Rare · Freeze</span></article>
+        <article class="relic rare"><span class="relic-icon">🔥</span><h3>Soulbrand Ember</h3><p>Your next attack deals 3× damage.</p><span class="relic-tag">Rare · Charge</span></article>
+        <article class="relic rare"><span class="relic-icon">🔥</span><h3>Phoenix Relic</h3><p>Revives one fallen front-line card at half health.</p><span class="relic-tag">Rare · Revive</span></article>
+        <article class="relic"><span class="relic-icon">✦</span><h3>Counter timing</h3><p>Shielding or freezing an opponent cancels its pending 2× or 3× charge. The relic is still consumed.</p><span class="relic-tag">Read the board</span></article>
+      </div>
+      <div class="callout"><b>Stack rule:</b> you can hold up to 3 copies of one relic. The battle cap limits total uses, and a relic cannot be used after the match is over.</div>
+    </section>
+
+    <section id="evolution">
+      <div class="section-heading"><div><span class="section-kicker">06 · The long climb</span><h2>Grow into a <span>god tier</span></h2></div><span class="section-kicker">Level cap · 15</span></div>
+      <p class="section-intro">Evolution is a visual grind layer over the existing XP loop. A card's random base identity stays intact while levels add controlled growth and unlock a new visual phase.</p>
+      <div class="evolution-track">
+        <article class="evo-card"><div class="evo-orb">Ⅰ</div><h3>Base Evolution</h3><span class="range">Lv 1–4</span><p>The card's original form. Its rolled stats, element, rarity, and art establish the starting identity.</p></article>
+        <article class="evo-card second"><div class="evo-orb">Ⅱ</div><h3>Second Evolution</h3><span class="range">Lv 5–9</span><p>A new frame and color treatment appear. The same card keeps its identity while level growth raises its current stats.</p></article>
+        <article class="evo-card god"><div class="evo-orb">Ⅲ</div><h3>God Tier Evolution</h3><span class="range">Lv 10–15</span><p>A special skin, aura, and capped finish mark the card as a long-term champion. Level 15 is the ceiling.</p></article>
+      </div>
+      <div class="god-tier-note"><b>How to add your art:</b> edit <code>creatures/evolutions.json</code>. Each creature has <code>base</code>, <code>second</code>, and <code>god</code> image fields. Leave a field empty to fall back to its normal image. The file accepts a bare filename or a full relative path.</div>
+      <div class="panel" style="margin-top:14px">
+        <h3>XP and balance</h3>
+        <p>A card earns 100 XP for a win and loses 50 XP for a loss. Each level adds +4 to all three current stats. Wins grow a card; losses can pull it back down. At level 15, XP cannot push it higher.</p>
+      </div>
+    </section>
+
+    <section id="sleeves">
+      <div class="section-heading"><div><span class="section-kicker">07 · Protect the rarest</span><h2>Use a <span>sleeve</span></h2></div></div>
+      <div class="panel">
+        <p>Open an owned card preview and choose <b>Sleeve Card</b>. The card gains a visible transparent blue sleeve, shine, and <b>PROTECTED</b> stamp.</p>
+        <div class="rule-grid">
+          <div class="rule"><h3>Locked from battle</h3><p>A sleeved card cannot be selected as one of the three battle cards or as the Redemption card.</p></div>
+          <div class="rule gold"><h3>Locked from selling</h3><p>Direct sale, bulk sale, and overflow trade paths refuse a sleeved card until you unsleeve it.</p></div>
+          <div class="rule"><h3>Protected crown jewel</h3><p>The defeat reward cannot take a sleeved card as your crown jewel.</p></div>
+          <div class="rule gold"><h3>Undo anytime</h3><p>Unsleeve it from the same preview when you decide it is ready to risk again.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="economy">
+      <div class="section-heading"><div><span class="section-kicker">08 · Risk and reward</span><h2>Gold has <span>teeth</span></h2></div></div>
+      <div class="economy-grid">
+        <div class="panel">
+          <h3>Gold rules</h3>
+          <div class="money-list">
+            <div class="money-row"><span>New or reset profile</span><b>100 gold</b></div>
+            <div class="money-row"><span>Open one pack</span><b>−100 gold</b></div>
+            <div class="money-row"><span>Full-team victory</span><b>+35 gold</b></div>
+            <div class="money-row"><span>Victory per remaining card</span><b>+10 gold</b></div>
+            <div class="money-row"><span>Defeat per card knocked out</span><b>−35 gold</b></div>
+            <div class="money-row"><span>Grading submission</span><b>200 gold</b></div>
+          </div>
+        </div>
+        <div class="panel danger-box">
+          <h3>When the legend ends</h3>
+          <p>Gold at zero is not automatically game over. Your cards are runway: their total value counts toward the next 100-gold pack and a fresh four-card battle team.</p>
+          <p>If you have fewer than four usable cards, no card is still waiting in the lab, and your gold plus total hoard value cannot reach the next pack, the profile is finished.</p>
+          <p>The game shows <b>Your Legend Ends Here</b>, then resets the profile to a fresh starter hoard.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="lab">
+      <div class="section-heading"><div><span class="section-kicker">09 · Condition matters</span><h2>The <span>Grading Lab</span></h2></div></div>
+      <div class="panel">
+        <p>Every card hides a condition grade from 1 to 10. Send a card to the lab for 200 gold, wait 3 minutes, and reveal its condition. Three lab slots can run at once.</p>
+        <div class="rule-grid">
+          <div class="rule"><h3>Value swing</h3><p>High grades multiply card value dramatically. A GEM MT 10 is a collector event; a Poor 1 is a hard hit.</p></div>
+          <div class="rule gold"><h3>Lab lock</h3><p>A card in grading cannot be sold or selected for battle. It returns when the timer finishes.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="trade">
+      <div class="section-heading"><div><span class="section-kicker">10 · The social loop</span><h2>Trade with <span>intent</span></h2></div></div>
+      <div class="panel">
+        <p>Start a trade, share the room code, choose one card each, review both sides, and confirm. The exchange is two-sided: both collectors must confirm before anything moves.</p>
+        <div class="rule-grid">
+          <div class="rule"><h3>Compare instances</h3><p>Look at stats, level, evolution, grade, serial, and battle record. A copy's name is only the beginning.</p></div>
+          <div class="rule gold"><h3>Protect before risk</h3><p>Sleeve cards you want to keep out of battle, sale, and crown-jewel loss. Unsleeve only when you are ready.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="tips">
+      <div class="section-heading"><div><span class="section-kicker">11 · Closing advice</span><h2>Play the <span>long game</span></h2></div></div>
+      <div class="tip-grid">
+        <div class="tip"><b>Read the edge</b><span>Do not attack on autopilot. The active matchup tells you which side gets the damage advantage.</span></div>
+        <div class="tip"><b>Save counters</b><span>Shield and freeze are strongest when they erase a charged 2× or 3× hit.</span></div>
+        <div class="tip"><b>Train specialists</b><span>Randomized stats mean one copy may be your best Power card while another is your Arcana card.</span></div>
+        <div class="tip"><b>Protect legends</b><span>Sleeve valuable cards before risking a match or leaving them exposed as the crown jewel.</span></div>
+        <div class="tip"><b>Respect reserve</b><span>The fourth card is hidden, but the match is not safe until the enemy's reserve is cleared too.</span></div>
+        <div class="tip"><b>Evolution is the grind</b><span>Level 5 and level 10 are visual milestones. Level 15 is the finish line.</span></div>
+      </div>
+    </section>
+
+    <footer>Shadowveil Field Guide · Summon · Trade · Dominate</footer>
+  </main>
+</div>
+</body>
+</html>

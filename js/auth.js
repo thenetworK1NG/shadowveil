@@ -72,11 +72,15 @@ function normalizeState() {
     if (!o.graded) o.graded = false;
     if (!('grading' in o)) o.grading = null;
     if (!o.level) o.level = 1;
+    o.level = Math.min(MAX_CARD_LEVEL, Math.max(1, Math.floor(Number(o.level) || 1)));
     if (!('wins' in o)) o.wins = 0;
     if (!('losses' in o)) o.losses = 0;
     if (!('streak' in o)) o.streak = 0;
     if (!Number.isFinite(o.xp)) o.xp = xpForLevel(o.level || 1);
+    o.xp = Math.min(xpForLevel(MAX_CARD_LEVEL), Math.max(0, o.xp));
     o.favorite = !!o.favorite;
+    o.sleeved = !!o.sleeved;
+    o.stats = normalizeCardStats(findPlayer(o.name), o.stats);
     if (!o.element) o.element = randomElement();
     o.firstEd = isFirstEdition(o.serial);
     const arr = state.serialBase[o.name];
@@ -326,16 +330,25 @@ async function submitAuth() {
 
 /* ---- boot: restore a session, otherwise gate the game ---- */
 async function authBoot() {
-  const saved = safeParse(localStorage.getItem(SESSION_KEY));
-  if (saved && saved.user) {
-    const ok = await verifySession(saved.user, saved.hash);
-    if (ok) {
-      await enterGame(saved.user, saved.hash);
-      return;
+  if (window.shadowveilLoaderStatus) window.shadowveilLoaderStatus('Restoring your profile...');
+  try {
+    const saved = safeParse(localStorage.getItem(SESSION_KEY));
+    if (saved && saved.user) {
+      const ok = await verifySession(saved.user, saved.hash);
+      if (ok) {
+        await enterGame(saved.user, saved.hash);
+        return;
+      }
     }
+    localStorage.removeItem(SESSION_KEY);
+    currentUser = null;
+    showAuth();
+  } catch (e) {
+    localStorage.removeItem(SESSION_KEY);
+    currentUser = null;
+    showAuth();
+  } finally {
+    if (window.shadowveilLoaderReady) window.shadowveilLoaderReady('profile');
   }
-  localStorage.removeItem(SESSION_KEY);
-  currentUser = null;
-  showAuth();
 }
 authBoot();

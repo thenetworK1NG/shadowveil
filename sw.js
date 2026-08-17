@@ -1,13 +1,15 @@
 /* Shadowveil service worker — precaches the app shell so the game
    launches offline, and caches the Firebase CDN scripts at runtime
    (with the app's __fbOffline fallback kicking in if they're missing). */
-const VERSION = 'shadowveil-v1';
+const VERSION = 'shadowveil-v3';
 const CORE = [
   './',
   './index.html',
   './manifest.webmanifest',
   './css/styles.css',
+  './creatures/evolutions.json',
   './js/data.js',
+  './js/loader.js',
   './js/core.js',
   './js/packs.js',
   './js/nav.js',

@@ -12,9 +12,25 @@ let currentUser = null; // set by auth.js once signed in
 const SAVE_KEY = 'shadowveil-state';
 const DEFAULT_STATS = { battles: 0, wins: 0, losses: 0, won: 0, lost: 0, streak: 0 };
 const STARTING_COINS = 100;
-/* New players start with one of each role already bound, so you can
-   jump straight into a trade with a friend — no pack-grinding first. */
-const STARTERS = ['Frost, Hoarfrost Golem', 'Bahar, Jade Oracle', 'Aria, Moonlit Sylph'];
+const LEVEL_STEP = 4;
+const XP_PER_WIN = 100;
+const XP_PER_LOSS = 50;
+const XP_LEVEL_BASE = 250;
+const XP_LEVEL_STEP = 100;
+const MAX_CARD_LEVEL = 15;
+const EVOLUTION_PHASES = {
+  base: { key: 'base', label: 'Base Evolution', short: 'BASE', min: 1, max: 4 },
+  second: { key: 'second', label: 'Second Evolution', short: 'EVOLVED', min: 5, max: 9 },
+  god: { key: 'god', label: 'God Tier Evolution', short: 'GOD TIER', min: 10, max: 15 },
+};
+function evolutionForLevel(level) {
+  const lv = Math.max(1, Math.min(MAX_CARD_LEVEL, Math.floor(Number(level) || 1)));
+  const phase = lv >= 10 ? EVOLUTION_PHASES.god : lv >= 5 ? EVOLUTION_PHASES.second : EVOLUTION_PHASES.base;
+  return { ...phase, level: lv, capped: phase.key === 'god' && lv >= MAX_CARD_LEVEL };
+}
+/* New players start with a four-card reserve so the first battle can use
+   the complete evolution-ready lineup without loan cards. */
+const STARTERS = ['Frost, Hoarfrost Golem', 'Bahar, Jade Oracle', 'Aria, Moonlit Sylph', 'Wren, Twilight Sprite'];
 
 /* ---- card instances ----
    Every creature you own is a unique instance: it carries its own
@@ -68,6 +84,7 @@ function syncSerials(name, used) {
 function makeInstance(name, extra) {
   extra = extra || {};
   const serial = extra.serial || mintSerial(name);
+  const base = findPlayer(name);
   const o = {
     id: genId(),
     name,
@@ -76,7 +93,7 @@ function makeInstance(name, extra) {
     grade: extra.grade != null ? extra.grade : null,
     graded: !!extra.graded,
     grading: null,
-    wins: 0, losses: 0, streak: 0, level: 1, xp: 0, favorite: false, element: extra.element || randomElement(),
+    wins: 0, losses: 0, streak: 0, level: 1, xp: 0, favorite: false, sleeved: !!extra.sleeved, stats: normalizeCardStats(base, extra.stats), element: extra.element || randomElement(),
   };
   Object.keys(extra).forEach(k => { if (extra[k] !== undefined) o[k] = extra[k]; });
   return o;
@@ -95,6 +112,19 @@ function serialBonus(n) {
   if (n <= 50) return 1.05;
   return 1;
 }
+function randomCardStats(base) {
+  if (!base) return { power: 1, cunning: 1, arcana: 1 };
+  const roll = value => Math.max(1, Math.min(100, Math.round(Number(value || 1) + (Math.random() * 20 - 10))));
+  return { power: roll(base.power), cunning: roll(base.cunning), arcana: roll(base.arcana) };
+}
+function normalizeCardStats(base, stats) {
+  const fallback = randomCardStats(base);
+  const value = key => {
+    const raw = stats && stats[key];
+    return raw != null && Number.isFinite(Number(raw)) ? Number(raw) : fallback[key];
+  };
+  return { power: value('power'), cunning: value('cunning'), arcana: value('arcana') };
+}
 
 let state = { owned: [], coins: STARTING_COINS, stats: { ...DEFAULT_STATS }, serialBase: {} };
 state.owned = STARTERS.map(n => makeInstance(n));
@@ -110,7 +140,7 @@ try {
     };
   }
 } catch (e) {}
-state.owned.forEach(o => { if (!o.level) o.level = 1; o.favorite = !!o.favorite; if (!o.element) o.element = randomElement(); });
+state.owned.forEach(o => { if (!o.level) o.level = 1; o.level = Math.min(MAX_CARD_LEVEL, Math.max(1, Math.floor(Number(o.level) || 1))); o.xp = Math.min(xpForLevel(MAX_CARD_LEVEL), Math.max(0, Number(o.xp) || xpForLevel(o.level))); o.favorite = !!o.favorite; o.sleeved = !!o.sleeved; const p = findPlayer(o.name); o.stats = normalizeCardStats(p, o.stats); if (!o.element) o.element = randomElement(); });
 if (!Array.isArray(state.artifacts)) state.artifacts = [];
 if (!state.serialBase || typeof state.serialBase !== 'object') state.serialBase = {};
 /* Brand-new hoard (first play, or after wiping account data). The
@@ -177,11 +207,6 @@ const RARITY_BASE = { bronze: 6, silver: 15, gold: 41, diamond: 77 };
    level. Each level adds +LEVEL_STEP to every stat and promotes the
    rarity one class up (Common → Uncommon → Rare → Mythic).
    ============================================================ */
-const LEVEL_STEP = 4;
-const XP_PER_WIN = 100;
-const XP_PER_LOSS = 50;
-const XP_LEVEL_BASE = 250;
-const XP_LEVEL_STEP = 100;
 
 function effRarity(p, level) {
   const tier = Math.min(RANK.length - 1, RANK.indexOf(p.rarity) + (level - 1));
@@ -191,11 +216,13 @@ function effPlayer(p, o) {
   if (!p || !o) return p;
   const lvl = o.level || 1;
   const gain = (lvl - 1) * LEVEL_STEP;
+  const stats = o.stats || { power: p.power, cunning: p.cunning, arcana: p.arcana };
   return {
     _eff: true, ...p,
-    power: p.power + gain,
-    cunning: p.cunning + gain,
-    arcana: p.arcana + gain,
+    stats,
+    power: stats.power + gain,
+    cunning: stats.cunning + gain,
+    arcana: stats.arcana + gain,
     rarity: effRarity(p, lvl),
     level: lvl,
     element: o.element || p.element || randomElement(),
@@ -213,11 +240,12 @@ function levelForXP(xp) {
   const numeric = Number(xp);
   const value = Number.isFinite(numeric) ? Math.max(0, numeric) : 0;
   let level = 1;
-  while (value >= xpForLevel(level + 1)) level++;
+  while (level < MAX_CARD_LEVEL && value >= xpForLevel(level + 1)) level++;
   return level;
 }
 function xpProgress(o) {
   const level = o.level || 1;
+  if (level >= MAX_CARD_LEVEL) return { current: 0, needed: 0 };
   const floor = xpForLevel(level);
   const next = xpForLevel(level + 1);
   const xp = Math.max(floor, Number(o.xp) || 0);
@@ -230,7 +258,7 @@ function recordCardDuel(o, won) {
   o.streak = won ? (o.streak || 0) + 1 : 0;
   if (!Number.isFinite(o.xp)) o.xp = xpForLevel(o.level || 1);
   const prev = o.level || 1;
-  o.xp = Math.max(0, o.xp + (won ? XP_PER_WIN : -XP_PER_LOSS));
+  o.xp = Math.min(xpForLevel(MAX_CARD_LEVEL), Math.max(0, o.xp + (won ? XP_PER_WIN : -XP_PER_LOSS)));
   o.level = levelForXP(o.xp);
   return prev === o.level ? null : { prev, level: o.level, dir: o.level > prev ? 'up' : 'down' };
 }
@@ -274,7 +302,7 @@ function isBankrupt() {
   const playable = new Set(state.owned
     .filter(o => !o.grading && findPlayer(o.name))
     .map(o => o.name));
-  if (playable.size >= 3 || state.owned.some(o => o.grading)) return false;
+  if (playable.size >= 4 || state.owned.some(o => o.grading)) return false;
   return (Number(state.coins) || 0) + totalHoardValue() < PACK_COST;
 }
 function checkBankruptcy() {
@@ -303,6 +331,7 @@ function sellCard(id) {
   const o = state.owned.find(x => x.id === id);
   if (!o) return;
   if (o.grading) { flash('That card is in the grading lab right now.'); return; }
+  if (o.sleeved) { flash('That card is sleeved and protected. Unsleeve it before selling.'); return; }
   const p = findPlayer(o.name);
   if (!p) return;
   pendingSell = { p, o };
@@ -316,10 +345,10 @@ function confirmSale() {
   if (!pendingSell) return;
   const { o } = pendingSell;
   const current = state.owned.find(x => x.id === o.id);
-  if (!current || current.grading) {
+  if (!current || current.grading || current.sleeved) {
     confirmBox.classList.add('hidden');
     pendingSell = null;
-    flash('That card is no longer available to sell.');
+    flash(current && current.sleeved ? 'That card is sleeved and protected.' : 'That card is no longer available to sell.');
     return;
   }
   const p = findPlayer(current.name);
@@ -341,7 +370,7 @@ function confirmSale() {
   checkBankruptcy();
 }
 function nonFavoriteSellables() {
-  return state.owned.filter(o => !o.favorite && !o.grading && findPlayer(o.name));
+  return state.owned.filter(o => !o.favorite && !o.grading && !o.sleeved && findPlayer(o.name));
 }
 function sellNonFavorites() {
   const cards = nonFavoriteSellables();
@@ -488,10 +517,11 @@ function renderLevelToast(s, done) {
   const p = findPlayer(s.name);
   if (!p) { done(); return; }
   const up = s.dir === 'up';
-  const before = effRarity(p, s.prev);
-  const after = effRarity(p, s.level);
-  const oldStats = effPlayer(p, { level: s.prev });
-  const newStats = effPlayer(p, { level: s.level });
+  const record = state.owned.find(o => o.name === s.name && o.serial === s.serial);
+  const beforeEvolution = evolutionForLevel(s.prev);
+  const afterEvolution = evolutionForLevel(s.level);
+  const oldStats = effPlayer(p, { level: s.prev, stats: record && record.stats });
+  const newStats = effPlayer(p, { level: s.level, stats: record && record.stats });
   const stat = (label, key) => `<div class="lt-stat"><span>${label}</span><b>${oldStats[key]}</b><i>→</i><b>${newStats[key]}</b></div>`;
   const box = document.createElement('div');
   box.className = 'level-toast';
@@ -499,14 +529,14 @@ function renderLevelToast(s, done) {
     <div class="lt-glow ${up ? 'up' : 'down'}"></div>
     <div class="lt-title ${up ? 'up' : 'down'}">${up ? '⬆ Level Up!' : '⬇ De-Ranked'}</div>
     <div class="lt-sub">${p.name}</div>
-    <div class="lt-line">${RARITY_LABEL[before]} → ${RARITY_LABEL[after]} · Lv ${s.prev} → ${s.level}</div>
+    <div class="lt-line">${beforeEvolution.label} → ${afterEvolution.label} · Lv ${s.prev} → ${s.level}</div>
     <div class="lt-stats">${stat('Power', 'power')}${stat('Cunning', 'cunning')}${stat('Arcana', 'arcana')}</div>
     <div class="lt-foot">${up ? 'Stats forged · XP threshold reached' : 'XP loss pulls stats back toward base'} · Tap anywhere to continue</div>`;
   const cardWrap = document.createElement('div');
   cardWrap.className = 'lt-card';
   cardWrap.appendChild(buildCard({
-    ...effPlayer(p, { level: s.level, wins: 0, losses: 0, streak: 0 }),
-    rec: { serial: s.serial, wins: 0, losses: 0, streak: 0, level: s.level },
+    ...effPlayer(p, { level: s.level, stats: record && record.stats, wins: 0, losses: 0, streak: 0 }),
+    rec: { serial: s.serial, wins: 0, losses: 0, streak: 0, level: s.level, stats: record && record.stats },
   }, 'lt-draw', true));
   box.appendChild(cardWrap);
   document.body.appendChild(box);
@@ -522,11 +552,12 @@ function renderLevelToast(s, done) {
   });
 }
 
-/* The crown jewel — the most valuable card in the whole collection.
+/* The crown jewel — the most valuable unprotected card in the collection.
    Defeat in the arena hands it to the enemy, so losses bite for real. */
 function crownJewel() {
   let best = null;
   state.owned.forEach(o => {
+    if (o.sleeved) return;
     const p = findPlayer(o.name);
     if (!p) return;
     const v = cardValue(p, o);
@@ -703,7 +734,7 @@ function overflowCancel(item, onDone) {
 function overflowTradeWith(o, item, onDone) {
   if (overflowActionBusy) return;
   const current = state.owned.find(x => x.id === o.id);
-  if (!current || current.grading) {
+  if (!current || current.grading || current.sleeved) {
     flash('That card is no longer available for the trade.');
     return;
   }
@@ -731,6 +762,7 @@ function showOverflowTrade(item, onDone) {
     <div class="svp-actions"><button class="svp-cancel" id="ovfBack">← Back</button></div>`;
   const pick = inner.querySelector('.ovf-pick');
   state.owned.forEach((o, i) => {
+    if (o.sleeved) return;
     const p = findPlayer(o.name);
     if (!p) return;
     const val = cardValue(p, o);
@@ -851,7 +883,7 @@ function openCardView(id) {
   if (!o) return;
   const p = findPlayer(o.name);
   if (!p) return;
-  showCardInspect(p, o, { sellable: true, gradable: !o.graded, favoriteable: true });
+  showCardInspect(p, o, { sellable: true, gradable: !o.graded, favoriteable: true, sleeveable: true });
 }
 /* A card on the Hall of Fame isn't yours — inspect it read-only. */
 function openHallCardView(entry) {
@@ -861,6 +893,7 @@ function openHallCardView(entry) {
 function showCardInspect(p, o, opts) {
   const e = effPlayer(p, o);
   const lvl = o.level || 1;
+  const evolution = evolutionForLevel(lvl);
   const val = cardValue(p, o);
   const progress = xpProgress(o);
   const box = document.createElement('div');
@@ -889,7 +922,8 @@ function showCardInspect(p, o, opts) {
          </div>`;
   const actions = [];
   if (opts.favoriteable) actions.push(`<button id="ciFavorite" class="favorite-toggle${o.favorite ? ' active' : ''}" aria-pressed="${!!o.favorite}">${o.favorite ? '★ Favorited' : '☆ Favorite'}</button>`);
-  if (opts.sellable && !o.grading) actions.push(`<button id="ciSell">Sell</button>`);
+  if (opts.sleeveable) actions.push(`<button id="ciSleeve" class="sleeve-toggle${o.sleeved ? ' active' : ''}" aria-pressed="${!!o.sleeved}"${o.grading ? ' disabled' : ''}>${o.sleeved ? 'Unsleeve Card' : 'Sleeve Card'}</button>`);
+  if (opts.sellable && !o.grading && !o.sleeved) actions.push(`<button id="ciSell">Sell</button>`);
   if (opts.gradable && !o.grading) actions.push(`<button id="ciGrade">Send to Lab</button>`);
   actions.push(`<button class="primary" id="ciClose">Done</button>`);
   wrap.innerHTML = `
@@ -898,8 +932,9 @@ function showCardInspect(p, o, opts) {
       <div class="ci-head">
         <span class="ci-rarity rare-${e.rarity}">${RARITY_LABEL[e.rarity]}</span>
         ${isFirstEdition(o.serial) ? `<span class="ci-firsted">★ 1st Edition</span>` : ''}
-       <span class="ci-lvl">Lv ${lvl} · XP ${progress.current}/${progress.needed}</span>
-        <span class="ci-role">${e.role} · ${e.realm}</span>
+        <span class="ci-evolution evo-${evolution.key}">${evolution.label}${evolution.capped ? ' · CAPPED' : ''}</span>
+        <span class="ci-lvl">Lv ${lvl} · XP ${evolution.capped ? 'MAX' : `${progress.current}/${progress.needed}`}</span>
+        <span class="ci-role">${e.realm}</span>
       </div>
       <div class="ci-stats">
         ${stat('Power', e.power, '#ff9d5c')}
@@ -936,6 +971,26 @@ function showCardInspect(p, o, opts) {
   });
   const sellBtn = wrap.querySelector('#ciSell');
   if (sellBtn) sellBtn.addEventListener('click', () => { close(); sellCard(o.id); });
+  const sleeveBtn = wrap.querySelector('#ciSleeve');
+  if (sleeveBtn) sleeveBtn.addEventListener('click', () => {
+    if (o.grading) return;
+    o.sleeved = !o.sleeved;
+    saveState();
+    renderCollection();
+    setSleeveVisual(card, o.sleeved);
+    sleeveBtn.classList.toggle('active', o.sleeved);
+    sleeveBtn.setAttribute('aria-pressed', String(!!o.sleeved));
+    sleeveBtn.textContent = o.sleeved ? 'Unsleeve Card' : 'Sleeve Card';
+    const sell = wrap.querySelector('#ciSell');
+    if (o.sleeved && sell) sell.remove();
+    if (!o.sleeved && !sell && opts.sellable) {
+      const button = document.createElement('button');
+      button.id = 'ciSell';
+      button.textContent = 'Sell';
+      button.addEventListener('click', () => { close(); sellCard(o.id); });
+      wrap.querySelector('.ci-actions').insertBefore(button, wrap.querySelector('#ciClose'));
+    }
+  });
   const gradeBtn = wrap.querySelector('#ciGrade');
   if (gradeBtn) gradeBtn.addEventListener('click', () => { close(); sendToGrade(o.id); });
   setTimeout(() => wrap.querySelectorAll('.ci-track i').forEach(b => b.classList.add('fill')), 60);
@@ -951,6 +1006,12 @@ function pickCard() {
 
 /* --- photo fallback: if an image fails to load, drop it and show the neutral backdrop --- */
 function silFallback(imgEl) {
+  const fallback = imgEl.dataset.fallback;
+  if (fallback && !imgEl.dataset.fallbackUsed) {
+    imgEl.dataset.fallbackUsed = '1';
+    imgEl.src = fallback;
+    return;
+  }
   const photo = imgEl.closest('.photo');
   if (photo) photo.classList.add('nophoto');
   imgEl.remove();
@@ -968,12 +1029,16 @@ function cardFront(p) {
   const rarity = RARITY[p.rarity];
   const ovr = Math.round((p.power + p.cunning + p.arcana) / 3);
   const stars = '★'.repeat(RANK.indexOf(p.rarity) + 1);
-  const artSrc = creatureImg(p.name);
+  const rec = p.rec || null;
+  const level = p.level || (rec && rec.level) || 1;
+  const evolution = evolutionForLevel(level);
+  const defaultArt = creatureImg(p.name);
+  const artSrc = typeof evolutionImg === 'function' ? evolutionImg(p.name, evolution.key) : defaultArt;
+  const fallbackArt = artSrc && artSrc !== defaultArt ? ` data-fallback="${defaultArt}"` : '';
   const art = artSrc
-    ? `<img src="${artSrc}" alt="${p.name}" data-name="${p.name}" onerror="silFallback(this)">`
+    ? `<img src="${artSrc}" alt="${p.name}" data-name="${p.name}"${fallbackArt} onerror="silFallback(this)">`
     : '';
   const chip = (label, val) => `<div class="chip"><span>${label}</span><b>${val}</b><i><em data-v="${val}"></em></i></div>`;
-  const rec = p.rec || null;
   const gradeChip = rec
     ? rec.grading
       ? `<span class="grade-chip lab" title="In the Grading Lab">⏳</span>`
@@ -986,7 +1051,7 @@ function cardFront(p) {
   const firstEd = rec && isFirstEdition(rec.serial)
     ? `<span class="firsted" title="1st Edition print run">1st Edition</span>`
     : '';
-  return `<div class="face tcard rare-${p.rarity}" style="--rar:${rarity.color}">
+  return `<div class="face tcard rare-${p.rarity} evo-${evolution.key}${evolution.capped ? ' god-capped' : ''}" style="--rar:${rarity.color}">
     <div class="card-top">
       <span class="team">${p.realm}</span>
       <span class="top-right">${gradeChip}<span class="rarity-tag">${RARITY_LABEL[p.rarity]}</span></span>
@@ -1000,7 +1065,7 @@ function cardFront(p) {
     </div>
     <div class="plate">
       <div class="nm"><h3>${p.name}</h3><span class="stars">${stars}</span></div>
-      <div class="role"><b>${p.role}</b><span>${p.realm}</span></div>
+      <div class="role"><b>${evolution.label}</b><span>Lv ${level}${evolution.capped ? ' · MAX' : ''}</span></div>
       <div class="element-tag" title="${elem.label}">${elem.icon} ${elem.label}</div>
     </div>
     <div class="stat-panel">
@@ -1017,9 +1082,21 @@ function cardFront(p) {
   </div>`;
 }
 
+function setSleeveVisual(card, enabled) {
+  card.classList.toggle('sleeved', enabled);
+  const old = card.querySelector('.sleeve-overlay');
+  if (old) old.remove();
+  if (!enabled) return;
+  const overlay = document.createElement('span');
+  overlay.className = 'sleeve-overlay';
+  overlay.innerHTML = '<span class="sleeve-stamp">PROTECTED</span>';
+  card.appendChild(overlay);
+}
+
 function buildCard(p, cls = '', noFlip = false) {
   const div = document.createElement('div');
-  div.className = 'flip ' + cls;
+  const evolution = evolutionForLevel(p.level || (p.rec && p.rec.level) || 1);
+  div.className = 'flip ' + cls + ` evo-${evolution.key}${evolution.capped ? ' god-capped' : ''}`;
   div.innerHTML = `<div class="flip-inner">${cardFront(p)}${cardBack()}</div>`;
   if (p.rec && p.rec.grading) {
     const status = document.createElement('span');
@@ -1029,6 +1106,7 @@ function buildCard(p, cls = '', noFlip = false) {
     div.classList.add('has-card-status');
     div.appendChild(status);
   }
+  if (p.rec && p.rec.sleeved) setSleeveVisual(div, true);
   if (!noFlip) div.addEventListener('click', () => div.querySelector('.flip-inner').classList.toggle('flipped'));
   return div;
 }

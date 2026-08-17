@@ -1,0 +1,16 @@
+{
+  "evolutions": [
+    { "name": "Vorlag, the Ember Wyrm",    "base": "", "second": "", "god": "" },
+    { "name": "Mordrax, the Void Serpent", "base": "", "second": "", "god": "" },
+    { "name": "Kaelen, Storm Warden",      "base": "", "second": "", "god": "" },
+    { "name": "Zephyra, Wind Spirit",      "base": "", "second": "", "god": "" },
+    { "name": "Nyx, the Shadow Stalker",   "base": "", "second": "", "god": "" },
+    { "name": "Thorne, Grave Reaper",      "base": "", "second": "", "god": "" },
+    { "name": "Aria, Moonlit Sylph",       "base": "", "second": "", "god": "" },
+    { "name": "Dravak, Sand Devil",        "base": "", "second": "", "god": "" },
+    { "name": "Ilyra, Storm Harpy",        "base": "", "second": "", "god": "" },
+    { "name": "Bahar, Jade Oracle",        "base": "", "second": "", "god": "" },
+    { "name": "Frost, Hoarfrost Golem",    "base": "", "second": "", "god": "" },
+    { "name": "Wren, Twilight Sprite",     "base": "", "second": "", "god": "" }
+  ]
+}

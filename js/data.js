@@ -8,7 +8,7 @@
    The img field here in data.js is no longer used — art is read
    from creatures/art.json via js/art.js.
    ------------------------------------------------------------
-   Each creature: name, role, realm, img, power (0-100), cunning,
+   Each creature: name, realm, img, power (0-100), cunning,
    arcana, rarity: 'bronze' | 'silver' | 'gold' | 'diamond'
    ============================================================ */
  const ELEMENTS = {
@@ -43,18 +43,18 @@
   }
 
  const PLAYERS = [
-  { name: 'Vorlag, the Ember Wyrm',    role: 'Brute',   realm: 'Ember Court',    img: '', power: 94, cunning: 12, arcana: 82, rarity: 'diamond' },
-  { name: 'Mordrax, the Void Serpent', role: 'Mystic',  realm: 'Shadowmere',     img: '', power: 15, cunning: 95, arcana: 70, rarity: 'diamond' },
-  { name: 'Kaelen, Storm Warden',      role: 'Warden',  realm: 'Stormhold',      img: '', power: 88, cunning: 62, arcana: 85, rarity: 'gold'    },
-  { name: 'Zephyra, Wind Spirit',      role: 'Stalker', realm: 'Stormhold',      img: '', power: 91, cunning: 10, arcana: 78, rarity: 'gold'    },
-  { name: 'Nyx, the Shadow Stalker',   role: 'Stalker', realm: 'Shadowmere',     img: '', power: 32, cunning: 93, arcana: 74, rarity: 'gold'    },
-  { name: 'Thorne, Grave Reaper',      role: 'Stalker', realm: 'Duskwold',       img: '', power: 85, cunning: 8,  arcana: 90, rarity: 'silver'  },
-  { name: 'Aria, Moonlit Sylph',       role: 'Stalker', realm: 'Mist Vale',      img: '', power: 89, cunning: 20, arcana: 80, rarity: 'silver'  },
-  { name: 'Dravak, Sand Devil',        role: 'Stalker', realm: 'Crimson Steppe', img: '', power: 48, cunning: 90, arcana: 76, rarity: 'silver'  },
-  { name: 'Ilyra, Storm Harpy',        role: 'Stalker', realm: 'Stormhold',      img: '', power: 86, cunning: 55, arcana: 79, rarity: 'silver'  },
-  { name: 'Bahar, Jade Oracle',        role: 'Mystic',  realm: 'Jade Delta',     img: '', power: 82, cunning: 74, arcana: 72, rarity: 'bronze'  },
-  { name: 'Frost, Hoarfrost Golem',    role: 'Brute',   realm: 'Frost Reach',    img: '', power: 18, cunning: 88, arcana: 66, rarity: 'bronze'  },
-  { name: 'Wren, Twilight Sprite',     role: 'Mystic',  realm: 'Duskwold',       img: '', power: 80, cunning: 5,  arcana: 83, rarity: 'bronze'  },
+   { name: 'Vorlag, the Ember Wyrm',    realm: 'Ember Court',    img: '', power: 94, cunning: 12, arcana: 82, rarity: 'diamond' },
+   { name: 'Mordrax, the Void Serpent', realm: 'Shadowmere',     img: '', power: 15, cunning: 95, arcana: 70, rarity: 'diamond' },
+   { name: 'Kaelen, Storm Warden',      realm: 'Stormhold',      img: '', power: 88, cunning: 62, arcana: 85, rarity: 'gold'    },
+   { name: 'Zephyra, Wind Spirit',      realm: 'Stormhold',      img: '', power: 91, cunning: 10, arcana: 78, rarity: 'gold'    },
+   { name: 'Nyx, the Shadow Stalker',   realm: 'Shadowmere',     img: '', power: 32, cunning: 93, arcana: 74, rarity: 'gold'    },
+   { name: 'Thorne, Grave Reaper',      realm: 'Duskwold',       img: '', power: 85, cunning: 8,  arcana: 90, rarity: 'silver'  },
+   { name: 'Aria, Moonlit Sylph',       realm: 'Mist Vale',      img: '', power: 89, cunning: 20, arcana: 80, rarity: 'silver'  },
+   { name: 'Dravak, Sand Devil',        realm: 'Crimson Steppe', img: '', power: 48, cunning: 90, arcana: 76, rarity: 'silver'  },
+   { name: 'Ilyra, Storm Harpy',        realm: 'Stormhold',      img: '', power: 86, cunning: 55, arcana: 79, rarity: 'silver'  },
+   { name: 'Bahar, Jade Oracle',        realm: 'Jade Delta',     img: '', power: 82, cunning: 74, arcana: 72, rarity: 'bronze'  },
+   { name: 'Frost, Hoarfrost Golem',    realm: 'Frost Reach',    img: '', power: 18, cunning: 88, arcana: 66, rarity: 'bronze'  },
+   { name: 'Wren, Twilight Sprite',     realm: 'Duskwold',       img: '', power: 80, cunning: 5,  arcana: 83, rarity: 'bronze'  },
 ];
 
 const RARITY = {
@@ -78,6 +78,7 @@ const ARTIFACTS = [
   { name: 'Wraith Fang',     icon: '💀', tier: 'rare',   effect: 'drain',  price: 95, desc: 'Strikes for heavy damage and siphons health' },
   { name: 'Frost Sigil',     icon: '❄️', tier: 'rare',   effect: 'stun',   price: 95, desc: 'The enemy skips their next turn' },
   { name: 'Soulbrand Ember', icon: '🔥', tier: 'rare',   effect: 'triple', price: 95, desc: 'Your next attack deals 3× damage' },
+  { name: 'Phoenix Relic',   icon: '🔥', tier: 'rare',   effect: 'revive', price: 110, desc: 'Revives one fallen card with half health' },
 ];
 const ARTIFACT_STACK = 3;
 const BATTLE_ART_CAP = 10;        // each side can use at most this many relics in a fight

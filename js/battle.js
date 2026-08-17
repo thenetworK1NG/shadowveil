@@ -9,7 +9,7 @@ const battleHud = $('#battleHud'), youBar = $('#youBar'), themBar = $('#themBar'
 const roundTicker = $('#roundTicker'), rewardBox = $('#rewardBox'), rewardGlow = $('#rewardGlow');
 const rewardTitle = $('#rewardTitle'), rewardSub = $('#rewardSub'), rewardCard = $('#rewardCard'), rewardFoot = $('#rewardFoot');
 const focusPlayerCard = $('#focusPlayerCard'), focusBotCard = $('#focusBotCard'), focusTurn = $('#focusTurn'), focusElement = $('#focusElement');
-let candidatePool = [], picked = [null, null, null], playerSquad = [], botSquad = [], battleActive = false, botArtifacts = [];
+let candidatePool = [], picked = [null, null, null], redemptionPick = null, playerSquad = [], botSquad = [], playerRedemption = null, botRedemption = null, battleActive = false, botArtifacts = [];
 let battleEpoch = 0, battleTimers = new Set();
 let firstTurnFlip = null;
 
@@ -41,17 +41,10 @@ window.addEventListener('beforeunload', event => {
   event.returnValue = '';
 });
 
-const SLOT_ROLES = ['Brute', 'Stalker', 'Mystic'];
-const SLOT_LABELS = ['Card 1', 'Card 2', 'Card 3'];
+const SLOT_LABELS = ['Card 1', 'Card 2', 'Card 3', 'Redemption'];
 const BATTLE_LOSS_GOLD_PER_CARD = 35;
 const BATTLE_SURVIVOR_GOLD = 10;
 const BATTLE_FULL_TEAM_GOLD = 35;
-function slotFit(p) {
-  if (p.role === 'Warden') return [0, 1, 2];
-  if (p.role === 'Brute') return [0];
-  if (p.role === 'Stalker') return [1];
-  return [2]; // Mystic
-}
 function botElementFor(target) {
   const counters = ELEMENT_KEYS.filter(key => elementMultiplier({ element: key }, target).multiplier > 1);
   const alternatives = ELEMENT_KEYS.filter(key => key !== target.element);
@@ -189,14 +182,34 @@ function bindEnemyPreview(card, enemy, getPlayer) {
     if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); open(); }
   });
 }
+function bindPlayerPreview(card, fighter, getOpponent) {
+  const rec = fighter.rec || state.owned.find(o => o.name === fighter.name);
+  const base = findPlayer(fighter.name);
+  if (!rec || !base) return;
+  card.classList.add('player-previewable');
+  card.setAttribute('role', 'button');
+  card.setAttribute('tabindex', '0');
+  card.setAttribute('aria-label', `Preview ${fighter.name}`);
+  const open = () => showPlayerCardPreview({ ...fighter, rec }, typeof getOpponent === 'function' ? getOpponent() : getOpponent);
+  card.addEventListener('click', open);
+  card.addEventListener('keydown', event => {
+    if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); open(); }
+  });
+}
 function showEnemyCardPreview(enemy, player) {
+  showBattleCardPreview(enemy, player, 'enemy');
+}
+function showPlayerCardPreview(player, enemy) {
+  showBattleCardPreview(player, enemy, 'player');
+}
+function showBattleCardPreview(card, opponent, side) {
   const old = document.querySelector('.battle-preview');
   if (old) old.remove();
-  const enemyElement = elementInfo(enemy.element);
-  const weakElement = elementInfo(enemyElement.weak);
-  const strongElement = elementInfo(enemyElement.strong);
-  const playerDelta = player ? elementDamageDelta(player, enemy) : 0;
-  const enemyDelta = player ? elementDamageDelta(enemy, player) : 0;
+  const isPlayer = side === 'player';
+  const cardElement = elementInfo(card.element);
+  const evolution = evolutionForLevel(card.level || (card.rec && card.rec.level) || 1);
+  const weakElement = elementInfo(cardElement.weak);
+  const strongElement = elementInfo(cardElement.strong);
   const verdict = delta => delta > 0 ? 'Vulnerable' : delta < 0 ? 'Resists' : 'Neutral';
   const effectRow = (label, source, target, direction) => {
     const delta = elementDamageDelta(source, target);
@@ -214,36 +227,40 @@ function showEnemyCardPreview(enemy, player) {
     </div>`;
   const box = document.createElement('div');
   box.className = 'card-inspect battle-preview';
+  const rows = opponent
+    ? isPlayer
+      ? effectRow('Your attack', card, opponent, 'enemy') + effectRow('Enemy attack', opponent, card, 'you')
+      : effectRow('Your active', opponent, card, 'enemy') + effectRow('Enemy attack', card, opponent, 'you')
+    : '<div class="battle-vuln-empty">Element matchup appears when the battle is live.</div>';
   box.innerHTML = `
     <div class="ci-inner">
       <div class="ci-card"></div>
-      <div class="ci-panel">
+        <div class="ci-panel">
         <div class="ci-head">
-          <span class="ci-rarity rare-${enemy.rarity}">${RARITY_LABEL[enemy.rarity]}</span>
-          <span class="ci-lvl">Enemy · Lv ${enemy.level || enemy.botLevel || 1}</span>
-          <span class="ci-role">${enemy.role} · ${enemy.realm}</span>
+          <span class="ci-rarity rare-${card.rarity}">${RARITY_LABEL[card.rarity]}</span>
+          <span class="ci-evolution evo-${evolution.key}">${evolution.label}${evolution.capped ? ' · CAPPED' : ''}</span>
+          <span class="ci-lvl">${isPlayer ? 'Your card' : 'Enemy'} · Lv ${card.level || card.botLevel || 1}</span>
+          <span class="ci-role">${card.realm}</span>
         </div>
         <div class="ci-stats">
-          ${stat('Power', enemy.power, '#ff9d5c')}
-          ${stat('Cunning', enemy.cunning, '#7fd4ff')}
-          ${stat('Arcana', enemy.arcana, '#d9a7ff')}
+          ${stat('Power', card.power, '#ff9d5c')}
+          ${stat('Cunning', card.cunning, '#7fd4ff')}
+          ${stat('Arcana', card.arcana, '#d9a7ff')}
         </div>
         <div class="ci-meta">
-          <span class="ci-ovr">OVR <b>${ovr(enemy)}</b></span>
-          <span class="ci-rec">${enemyElement.icon} ${enemyElement.label}</span>
-          <span class="ci-val"><b>Enemy</b></span>
+          <span class="ci-ovr">OVR <b>${ovr(card)}</b></span>
+          <span class="ci-rec">${cardElement.icon} ${cardElement.label}</span>
+          <span class="ci-val"><b>${isPlayer ? 'Your card' : 'Enemy'}</b></span>
         </div>
         <div class="battle-vulnerabilities">
           <div class="battle-vuln-title">Element matchup</div>
           <div class="battle-vuln-summary"><span>Weak to <b>${weakElement.icon} ${weakElement.label}</b></span><span>Strong vs <b>${strongElement.icon} ${strongElement.label}</b></span></div>
-          ${player ? effectRow('Your active', player, enemy, 'enemy') : ''}
-          ${player ? effectRow('Enemy attack', enemy, player, 'you') : ''}
-          ${!player ? '<div class="battle-vuln-empty">Element matchup appears when the battle is live.</div>' : ''}
+          ${rows}
         </div>
         <div class="ci-actions"><button class="primary" id="battlePreviewClose">Close Preview</button></div>
       </div>
     </div>`;
-  box.querySelector('.ci-card').appendChild(buildCard({ ...enemy }, 'ci-draw', true));
+  box.querySelector('.ci-card').appendChild(buildCard({ ...card }, 'ci-draw', true));
   document.body.appendChild(box);
   requestAnimationFrame(() => {
     box.classList.add('pop');
@@ -267,6 +284,9 @@ function openPicker() {
   document.body.classList.remove('in-fight');
   document.getElementById('squadSlots').classList.remove('hidden');
   picked = [null, null, null];
+  redemptionPick = null;
+  playerRedemption = null;
+  botRedemption = null;
   $('#statsPanel').classList.add('hidden');
   resultBanner.classList.add('hidden');
   battlePit.classList.add('hidden');
@@ -274,7 +294,7 @@ function openPicker() {
   rewardBox.classList.add('hidden');
   document.querySelector('.picker-wrap').classList.remove('hidden');
   $('#arenaBack').classList.remove('hidden');
-  $('#arenaSub').textContent = 'Pick any three cards from your hoard. Fights are turn-based — burn your one-use relics mid-duel. Lose, and the enemy walks off with your crown jewel.';
+  $('#arenaSub').textContent = 'Pick three battle cards and a hidden redemption card. Fights are turn-based — burn your one-use relics mid-duel. Lose, and the enemy walks off with your crown jewel.';
   // Candidates are bound creatures only. Grading cards remain visible but locked.
   // duplicate copies of the same creature collapse into their best instance for the arena.
   const seen = new Set();
@@ -290,9 +310,23 @@ function openPicker() {
 function renderPicker() {
   picker.innerHTML = '';
   candidatePool.forEach(p => {
-    const locked = !!(p.rec && p.rec.grading);
-    const card = buildCard({ ...p }, 'p-card' + (locked ? ' grading-locked' : ''), true);
+    const gradingLocked = !!(p.rec && p.rec.grading);
+    const sleevedLocked = !!(p.rec && p.rec.sleeved);
+    const locked = gradingLocked || sleevedLocked;
+    const card = buildCard({ ...p }, 'p-card' + (gradingLocked ? ' grading-locked' : '') + (sleevedLocked ? ' sleeved-locked' : ''), true);
     card.dataset.name = p.name;
+    if (sleevedLocked) {
+      const tag = document.createElement('span');
+      tag.className = 'sleeve-pick-tag';
+      tag.textContent = 'Sleeved · Protected';
+      card.appendChild(tag);
+    }
+    if (redemptionPick === p.name) {
+      const tag = document.createElement('span');
+      tag.className = 'redemption-pick-tag';
+      tag.textContent = 'Redemption';
+      card.appendChild(tag);
+    }
     if (p.rec && p.rec.favorite) {
       card.classList.add('favorite-pick');
       const tag = document.createElement('span');
@@ -304,17 +338,22 @@ function renderPicker() {
     if (!locked) card.addEventListener('click', () => togglePick(p.name));
     picker.appendChild(card);
   });
-  $$('.p-card').forEach(el => el.classList.toggle('picked', picked.includes(el.dataset.name)));
+  $$('.p-card').forEach(el => {
+    el.classList.toggle('picked', picked.includes(el.dataset.name));
+    el.classList.toggle('redemption-picked', redemptionPick === el.dataset.name);
+  });
 }
 
 function togglePick(name) {
   const idx = picked.indexOf(name);
   if (idx >= 0) { picked[idx] = null; }
+  else if (redemptionPick === name) { redemptionPick = null; }
   else {
     const p = candidatePool.find(x => x.name === name);
-    if (!p || (p.rec && p.rec.grading)) return;
+    if (!p || (p.rec && (p.rec.grading || p.rec.sleeved))) return;
     const slot = picked.findIndex(card => card === null);
     if (slot >= 0) picked[slot] = name;
+    else if (!redemptionPick) redemptionPick = name;
   }
   renderPicker();
   renderSlots();
@@ -322,17 +361,19 @@ function togglePick(name) {
 
 function renderSlots() {
   squadSlots.innerHTML = '';
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < 4; i++) {
     const slot = document.createElement('div');
-    slot.className = 'slot' + (picked[i] ? ' filled' : '');
-    const p = candidatePool.find(x => x.name === picked[i]);
+    const selected = i < 3 ? picked[i] : redemptionPick;
+    slot.className = 'slot' + (selected ? ' filled' : '') + (i === 3 ? ' redemption-slot' : '');
+    const p = candidatePool.find(x => x.name === selected);
     const head = SLOT_LABELS[i];
+    const evolution = p ? evolutionForLevel(p.level) : null;
     slot.innerHTML = p
-      ? `<span class="s-num">${head}</span><span class="s-name">${elementInfo(p.element).icon} ${p.name}</span><span class="s-ovr">OVR ${ovr(p)} · ${p.role}</span>`
+      ? `<span class="s-num">${head}</span><span class="s-name">${elementInfo(p.element).icon} ${p.name}</span><span class="s-ovr">${i === 3 ? 'Face-down reserve' : `OVR ${ovr(p)} · ${evolution.short}`}</span>`
       : `<span class="s-num">${head}</span><span class="s-name">—</span>`;
     squadSlots.appendChild(slot);
   }
-  const ready = picked.every(Boolean);
+  const ready = picked.every(Boolean) && !!redemptionPick;
   $('#arenaActions').innerHTML = `<button class="primary" id="fightBtn" ${ready ? '' : 'disabled'}>Fight</button>`;
   const fb = $('#fightBtn');
   if (fb) fb.addEventListener('click', () => { if (ready) startFight(); });
@@ -340,6 +381,7 @@ function renderSlots() {
 
 function buildBotSquad() {
   const usedByPlayer = new Set(playerSquad.map(p => p.name));
+  if (playerRedemption) usedByPlayer.add(playerRedemption.name);
   const targets = playerSquad;
 
   /* Bot cards are virtual copies. Their level follows the card they are
@@ -347,32 +389,31 @@ function buildBotSquad() {
      fresh level-one opponents. They are never written to the collection. */
   const virtualCard = (base, target) => {
     const level = Math.max(1, Math.floor(Number(target.level) || 1));
-    const card = effPlayer(base, { level, element: botElementFor(target) });
+    const card = effPlayer(base, { level, stats: randomCardStats(base), element: botElementFor(target) });
     card.botLevel = level;
     return card;
   };
-  const choiceScore = (base, candidate, target, slot) => {
+  const choiceScore = (base, candidate, target) => {
     const distance = Math.abs(ovr(candidate) - ovr(target));
-    const exactRole = base.role === SLOT_ROLES[slot] ? 8 : 0;
     const rarity = Math.max(0, RANK.indexOf(base.rarity)) * 0.8;
     const matchup = elementMultiplier(candidate, target).multiplier;
     const elementPlan = matchup > 1 ? 28 : matchup < 1 ? -22 : 0;
     /* Stay close enough to the player's level for a fair fight, then prefer
        the stronger card and a favorable element plan when several candidates
        are equally suitable. */
-    return 120 - distance * 3 + ovr(candidate) * 0.08 + exactRole + rarity + elementPlan;
+    return 120 - distance * 3 + ovr(candidate) * 0.08 + rarity + elementPlan;
   };
 
-  const options = targets.map((target, slot) => PLAYERS
-    .filter(base => !usedByPlayer.has(base.name) && slotFit(base).includes(slot))
+  const options = targets.map(target => PLAYERS
+    .filter(base => !usedByPlayer.has(base.name))
     .map(base => {
       const card = virtualCard(base, target);
-      return { base, card, score: choiceScore(base, card, target, slot) };
+      return { base, card, score: choiceScore(base, card, target) };
     })
     .sort((a, b) => b.score - a.score));
 
-  /* Enumerate the tiny three-slot draft instead of greedily spending a
-     flexible Warden on the first slot and starving a later slot. */
+  /* Enumerate the tiny three-slot draft so the same counter card is never
+     spent twice while the bot builds its response team. */
   let best = null;
   function draft(slot, chosen, used, score) {
     if (slot === options.length) {
@@ -392,17 +433,26 @@ function buildBotSquad() {
 
   if (best && best.cards.length === 3) return best.cards;
 
-  /* Defensive fallback for damaged/custom card data: always return three
-     legal opponents when the global roster contains enough distinct cards. */
+  /* Defensive fallback for damaged/custom card data. */
   const fallbackUsed = new Set(usedByPlayer);
   return targets.map((target, slot) => {
     const base = PLAYERS
-      .filter(p => !fallbackUsed.has(p.name) && slotFit(p).includes(slot))
+      .filter(p => !fallbackUsed.has(p.name))
       .sort((a, b) => ovr(b) - ovr(a))[0];
     if (!base) return null;
     fallbackUsed.add(base.name);
     return virtualCard(base, target);
   }).filter(Boolean);
+}
+function buildBotRedemption(targets, squad) {
+  const used = new Set(targets.concat(squad).map(p => p.name));
+  const target = targets.slice().sort((a, b) => ovr(b) - ovr(a))[0];
+  const base = PLAYERS.filter(p => !used.has(p.name)).sort((a, b) => ovr(b) - ovr(a))[0] || PLAYERS[0];
+  const level = Math.max(1, Math.floor(Number(target.level) || 1));
+  const card = effPlayer(base, { level, stats: randomCardStats(base), element: botElementFor(target) });
+  card.botLevel = level;
+  card.redemption = true;
+  return card;
 }
 
 /* Show the most valuable available relics first, but limit the returned
@@ -472,9 +522,13 @@ function startFight() {
   document.body.classList.add('in-fight');
   document.getElementById('squadSlots').classList.add('hidden');
   playerSquad = [0, 1, 2].map(i => candidatePool.find(x => x.name === picked[i]));
-  if (playerSquad.some(p => !p || (p.rec && p.rec.grading))) {
+  playerRedemption = candidatePool.find(x => x.name === redemptionPick);
+  const blockedCard = playerSquad.concat(playerRedemption || []).find(p => !p || (p.rec && (p.rec.grading || p.rec.sleeved)));
+  if (blockedCard !== undefined) {
     abortBattle(true);
-    flash('Cards in the Grading Lab cannot enter battle.');
+    flash(blockedCard && blockedCard.rec && blockedCard.rec.sleeved
+      ? 'Sleeved cards are protected and cannot enter battle.'
+      : 'Cards in the Grading Lab cannot enter battle.');
     openPicker();
     return;
   }
@@ -485,20 +539,32 @@ function startFight() {
     openPicker();
     return;
   }
+  botRedemption = buildBotRedemption(playerSquad, botSquad);
+  playerSquad.push(playerRedemption);
+  botSquad.push(botRedemption);
   botArtifacts = rollBotArtifacts();
   document.querySelector('.picker-wrap').classList.add('hidden');
   $('#arenaBack').classList.add('hidden');
-  $('#arenaSub').textContent = 'Make the call: attack, switch for a better matchup, or spend a relic. First coven to three KOs wins.';
+  $('#arenaSub').textContent = 'Make the call: attack, switch for a better matchup, or spend a relic. Clear all four enemy cards to win.';
   battleHud.classList.remove('hidden');
   setScore(0, 0);
   $$('#roundTicker span').forEach((s, i) => { s.className = ''; s.textContent = 'KO' + (i + 1); });
   battlePit.classList.remove('hidden');
   pSquad.innerHTML = ''; bSquad.innerHTML = '';
-  playerSquad.forEach((p, i) => { const c = buildCard({ ...p }, 'b-card'); c.id = 'pc' + i; pSquad.appendChild(c); });
+   playerSquad.forEach((p, i) => {
+     const hidden = i === 3;
+     const c = buildCard({ ...p }, 'b-card' + (hidden ? ' redemption-card redemption-hidden' : ''), true);
+     c.id = 'pc' + i;
+     if (hidden) c.querySelector('.flip-inner').classList.add('flipped');
+      else bindPlayerPreview(c, p, () => botSquad[bActive]);
+     pSquad.appendChild(c);
+   });
    botSquad.forEach((p, i) => {
-     const c = buildCard({ ...p }, 'b-card', true);
+     const hidden = i === 3;
+     const c = buildCard({ ...p }, 'b-card' + (hidden ? ' redemption-card redemption-hidden' : ''), true);
      c.id = 'bc' + i;
-     bindEnemyPreview(c, p, () => playerSquad[pActive]);
+     if (hidden) c.querySelector('.flip-inner').classList.add('flipped');
+     else bindEnemyPreview(c, p, () => playerSquad[pActive]);
      bSquad.appendChild(c);
    });
   showBotArtifacts();
@@ -506,11 +572,12 @@ function startFight() {
 
   let pScore = 0, bScore = 0;
   let pActive = 0, bActive = 0;
-  let pMult = 1, bMult = 1, pShield = false, bShield = false, pStun = false, bStun = false;
+   let pMult = 1, bMult = 1, pShield = false, bShield = false, pStun = false, bStun = false;
+   let pRedemptionUsed = false, bRedemptionUsed = false;
   let playerRelicsUsed = 0, eliminations = 0, matchFinished = false;
   const hpOf = p => Math.round(60 + ovr(p) * 1.8);
   const pHP = playerSquad.map(hpOf), bHP = botSquad.map(hpOf);
-  const pAlive = [true, true, true], bAlive = [true, true, true];
+   const pAlive = [true, true, true, false], bAlive = [true, true, true, false];
   const pCombat = playerSquad.map(() => ({ damage: 0, wins: 0, losses: 0, switches: 0, events: [] }));
   const bCombat = botSquad.map(() => ({ damage: 0, wins: 0, losses: 0, switches: 0, events: [] }));
   const engagements = [];
@@ -536,6 +603,7 @@ function startFight() {
     focusBotCard.innerHTML = '';
     const pCard = buildCard({ ...pc }, 'focus-card', true);
     const bCard = buildCard({ ...bc }, 'focus-card', true);
+    bindPlayerPreview(pCard, pc, bc);
     bindEnemyPreview(bCard, bc, pc);
     pCard.classList.toggle('battle-defeated', !pAlive[pActive]);
     bCard.classList.toggle('battle-defeated', !bAlive[bActive]);
@@ -575,6 +643,16 @@ function startFight() {
     [...container.querySelectorAll('button')].forEach(b => { b.disabled = true; b.style.opacity = .5; });
   }
   function aliveIndexes(list) { return list.map((alive, i) => alive ? i : -1).filter(i => i >= 0); }
+  function bestReviveIndex(alive, roster, opponent) {
+    return alive
+      .map((isAlive, i) => !isAlive && i < 3 ? i : -1)
+      .filter(i => i >= 0)
+      .sort((a, b) => {
+        const aMatch = opponent ? elementMultiplier(roster[a], opponent).multiplier : 1;
+        const bMatch = opponent ? elementMultiplier(roster[b], opponent).multiplier : 1;
+        return (bMatch * 50 + ovr(roster[b])) - (aMatch * 50 + ovr(roster[a]));
+      })[0] ?? -1;
+  }
   function refreshActive() {
     pSquad.querySelectorAll('.b-card').forEach((el, i) => {
       el.classList.toggle('battle-active', i === pActive && pAlive[i]);
@@ -587,6 +665,35 @@ function startFight() {
       setHP(el, bHP[i], hpOf(botSquad[i]));
     });
     renderFocus();
+  }
+  function revealReserve(side) {
+    const roster = side === 'player' ? playerSquad : botSquad;
+    const card = document.getElementById((side === 'player' ? 'pc' : 'bc') + '3');
+    if (card) {
+      card.classList.remove('redemption-hidden');
+      card.classList.add('redemption-revealed');
+      card.querySelector('.flip-inner').classList.remove('flipped');
+      if (side === 'player') bindPlayerPreview(card, roster[3], () => botSquad[bActive]);
+      else bindEnemyPreview(card, roster[3], () => playerSquad[pActive]);
+    }
+  }
+  function activateRedemption(side) {
+    if (side === 'player') {
+      if (pRedemptionUsed || pAlive[3]) return false;
+      pRedemptionUsed = true;
+      pAlive[3] = true;
+      pActive = 3;
+      pMult = 1; pShield = false; pStun = false;
+    } else {
+      if (bRedemptionUsed || bAlive[3]) return false;
+      bRedemptionUsed = true;
+      bAlive[3] = true;
+      bActive = 3;
+      bMult = 1; bShield = false; bStun = false;
+    }
+    revealReserve(side);
+    refreshActive();
+    return true;
   }
   function beginEngagement() {
     if (engagement) return;
@@ -606,16 +713,24 @@ function startFight() {
   }
   function finishIfOver() {
     if (matchFinished) return true;
+    if (!pAlive.slice(0, 3).some(Boolean) && !pRedemptionUsed) {
+      activateRedemption('player');
+      return false;
+    }
+    if (!bAlive.slice(0, 3).some(Boolean) && !bRedemptionUsed) {
+      activateRedemption('bot');
+      return false;
+    }
     if (!pAlive.some(Boolean) || !bAlive.some(Boolean)) {
       matchFinished = true;
       closeEngagement(!bAlive.some(Boolean) ? 'player' : 'bot');
-      finishMatch(engagements, pScore, bScore, !bAlive.some(Boolean), pCombat, bCombat);
+      finishMatch(engagements, pScore, bScore, !bAlive.some(Boolean), pCombat, bCombat, pRedemptionUsed);
       return true;
     }
     return false;
   }
   function markElimination(killer) {
-    markTicker(Math.min(2, eliminations), killer === 'player');
+    markTicker(Math.min(3, eliminations), killer === 'player');
     eliminations++;
   }
   function chooseNextBot() {
@@ -670,6 +785,14 @@ function startFight() {
     refreshActive();
     focusTurn.textContent = 'ENEMY TURN';
     markElimination(side === 'player' ? 'bot' : 'player');
+    const reserveActivated = side === 'player'
+      ? index < 3 && !pAlive.slice(0, 3).some(Boolean) && activateRedemption('player')
+      : index < 3 && !bAlive.slice(0, 3).some(Boolean) && activateRedemption('bot');
+    if (reserveActivated) {
+      if (side === 'player') playerTurn();
+      else battleLater(() => playerTurn(), 900);
+      return;
+    }
     if (finishIfOver()) return;
     if (side === 'player') playerReplacement();
     else chooseNextBot();
@@ -724,7 +847,11 @@ function startFight() {
     beginEngagement();
     const acts = $('#arenaActions');
     const pc = playerSquad[pActive];
-    const relics = battleArtifacts(state.artifacts, BATTLE_ART_CAP - playerRelicsUsed);
+    const relics = battleArtifacts(state.artifacts, BATTLE_ART_CAP - playerRelicsUsed)
+      .filter(entry => {
+        const art = findArtifact(entry.name);
+        return art && (art.effect !== 'revive' || bestReviveIndex(pAlive, playerSquad, botSquad[bActive]) >= 0);
+      });
     acts.innerHTML = '<div class="action-header"><span class="turn-prompt">Your move</span><span class="action-tip">Exploit the matchup or set up a relic</span></div><div class="action-buttons"><button class="primary" id="atkBtn">⚔️ Attack</button><button class="action-toggle" id="switchToggle">↔ Switch Cards</button>' + (relics.length ? '<button class="action-toggle" id="relicToggle">✦ Use Relic</button>' : '') + '</div>';
     $('#atkBtn').addEventListener('click', () => { disableActs(acts); playerAttack(); });
     const switchPanel = document.createElement('div');
@@ -766,6 +893,7 @@ function startFight() {
     let dmg = ovr(pc) * (0.85 + Math.random() * .3) * advantage.multiplier;
     if (bShield) {
       bShield = false;
+      pMult = 1;
       renderFocus();
       damageNum($('#bc' + bActive), 0, true, 'BLOCKED');
       focusDamage('bot', 0, true, 'BLOCKED');
@@ -786,11 +914,18 @@ function startFight() {
     battleLater(() => botTurn(), 1150);
   }
   function useArtifactInBattle(art) {
+    const reviveIndex = art.effect === 'revive' ? bestReviveIndex(pAlive, playerSquad, botSquad[bActive]) : -1;
+    if (art.effect === 'revive' && reviveIndex < 0) { playerTurn(); return; }
     if (!battleActive || !spendArtifact(art.name)) { playerTurn(); return; }
     playerRelicsUsed++;
     const pc = playerSquad[pActive], bc = botSquad[bActive];
     relicPopup(art, 'player');
-    if (art.effect === 'drain') {
+    if (art.effect === 'revive') {
+      pAlive[reviveIndex] = true;
+      pHP[reviveIndex] = Math.ceil(hpOf(playerSquad[reviveIndex]) * .5);
+      refreshActive();
+      effectPop(document.getElementById('pc' + reviveIndex), 'REVIVED 50%', 'heal');
+    } else if (art.effect === 'drain') {
       const advantage = elementMultiplier(pc, bc);
       const dmg = Math.min(Math.max(0, bHP[bActive]), ovr(pc) * 1.4 * advantage.multiplier);
       bHP[bActive] -= dmg;
@@ -814,16 +949,16 @@ function startFight() {
         case 'double': pMult = 2; break;
         case 'triple': pMult = 3; break;
         case 'heal': pHP[pActive] = hpOf(playerSquad[pActive]); setHP($('#pc' + pActive), pHP[pActive], hpOf(playerSquad[pActive])); break;
-        case 'shield': pShield = true; break;
-        case 'stun': bStun = true; break;
+        case 'shield': pShield = true; bMult = 1; break;
+        case 'stun': bStun = true; bMult = 1; break;
       }
     } else {
       switch (art.effect) {
         case 'double': bMult = 2; break;
         case 'triple': bMult = 3; break;
         case 'heal': bHP[bActive] = hpOf(botSquad[bActive]); setHP($('#bc' + bActive), bHP[bActive], hpOf(botSquad[bActive])); break;
-        case 'shield': bShield = true; break;
-        case 'stun': pStun = true; break;
+        case 'shield': bShield = true; pMult = 1; break;
+        case 'stun': pStun = true; pMult = 1; break;
       }
     }
     renderFocus();
@@ -842,6 +977,7 @@ function startFight() {
     const pc = playerSquad[pActive], bc = botSquad[bActive];
     const usable = botArtifacts.filter(x => x.count > 0);
     const pMax = hpOf(pc), bMax = hpOf(bc);
+    const reviveIndex = bestReviveIndex(bAlive, botSquad, pc);
     const playerAdvantage = elementMultiplier(pc, bc);
     const botAdvantage = elementMultiplier(bc, pc);
     const pElement = playerAdvantage.multiplier;
@@ -858,6 +994,7 @@ function startFight() {
       let dmg = ovr(bc) * (0.85 + Math.random() * .3) * bElement;
       if (pShield) {
         pShield = false;
+        bMult = 1;
         renderFocus();
         damageNum($('#pc' + pActive), 0, false, 'BLOCKED');
         focusDamage('player', 0, false, 'BLOCKED');
@@ -882,7 +1019,14 @@ function startFight() {
       if (slot.count <= 0) botArtifacts = botArtifacts.filter(x => x !== slot);
       showBotArtifacts();
       relicPopup(art, 'bot');
-      if (art.effect === 'drain') {
+      if (art.effect === 'revive') {
+        const targetIndex = bestReviveIndex(bAlive, botSquad, pc);
+        if (targetIndex < 0) { battleLater(() => playerTurn(), 500); return; }
+        bAlive[targetIndex] = true;
+        bHP[targetIndex] = Math.ceil(hpOf(botSquad[targetIndex]) * .5);
+        refreshActive();
+        effectPop(document.getElementById('bc' + targetIndex), 'REVIVED 50%', 'heal');
+      } else if (art.effect === 'drain') {
         const dmg = Math.min(Math.max(0, pHP[pActive]), drainDmg);
         pHP[pActive] -= dmg;
         bHP[bActive] = Math.min(hpOf(bc), bHP[bActive] + dmg * .5);
@@ -907,6 +1051,7 @@ function startFight() {
     if (botSureKills) return attack();
     if (pShield) return attack();
     if (has.drain && drainDmg >= pHP[pActive]) return useArt(slots.drain, findArtifact(slots.drain.name));
+    if (has.revive && reviveIndex >= 0 && (bHP[bActive] < bMax * .5 || bElement < 1 || playerThreat)) return useArt(slots.revive, findArtifact(slots.revive.name));
     if (chooseSwitch !== null && !botLikelyKills && (bElement < 1 || playerThreat || bHP[bActive] < bMax * .3)) return switchBot(chooseSwitch);
     if (has.shield && !bShield && playerThreat) return useArt(slots.shield, findArtifact(slots.shield.name));
     if (has.stun && !pShield && !botLikelyKills && (playerThreat || bElement < 1)) return useArt(slots.stun, findArtifact(slots.stun.name));
@@ -917,7 +1062,7 @@ function startFight() {
     attack();
   }
 
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < 4; i++) {
     addHPBar($('#pc' + i));
     addHPBar($('#bc' + i));
     setHP($('#pc' + i), pHP[i], hpOf(playerSquad[i]));
@@ -962,7 +1107,7 @@ function triggerBankruptcy() {
     <div class="legend-end-card" role="dialog" aria-modal="true" aria-label="Your legend ends here">
       <span class="legend-end-kicker">THE VEIL CLOSES</span>
       <h2>YOUR LEGEND ENDS HERE</h2>
-      <p>You no longer have enough gold or hoard value to form another three-card coven.</p>
+      <p>You no longer have enough gold or hoard value to form another four-card battle team.</p>
       <div class="legend-end-stats"><span>Gold <b>${coin()}${Math.max(0, Number(state.coins) || 0)}</b></span><span>Hoard value <b>${coin()}${total}</b></span></div>
       <span class="legend-end-hint">Tap anywhere to begin a new profile</span>
     </div>`;
@@ -993,27 +1138,34 @@ function triggerBankruptcy() {
   requestAnimationFrame(() => box.focus());
 }
 
-function finishMatch(rounds, pScore, bScore, matchWon, pCombat, bCombat) {
+function finishMatch(rounds, pScore, bScore, matchWon, pCombat, bCombat, redemptionUsed) {
   const st = state.stats;
 
-  // Apply each card's actual kill/death sequence. A switch or survival alone
-  // is not a result; a kill is a win and being knocked out is a loss.
   const shifts = [];
-  playerSquad.forEach((p, i) => {
-    const o = p.rec;
-    if (o) {
-      pCombat[i].events.forEach(result => {
-        const shift = recordCardDuel(o, result === 'win');
-        if (shift) shifts.push({ name: o.name, ...shift, serial: o.serial });
-      });
+  const record = (o, won) => {
+    const shift = recordCardDuel(o, won);
+    if (shift) shifts.push({ name: o.name, ...shift, serial: o.serial });
+  };
+  if (matchWon && !redemptionUsed) {
+    /* A clean win is a team victory: every card gets one win and nobody is
+       charged a loss, even if the live duel sequence included KOs. */
+    pCombat.forEach(card => { card.wins = 1; card.losses = 0; card.events = []; });
+    playerSquad.forEach(p => { if (p.rec) record(p.rec, true); });
+  } else {
+    playerSquad.forEach((p, i) => {
+      if (p.rec) pCombat[i].events.forEach(result => record(p.rec, result === 'win'));
+    });
+    if (matchWon && redemptionUsed && playerRedemption && playerRedemption.rec) {
+      const bonusWins = Math.ceil(pCombat.reduce((sum, card) => sum + card.wins, 0) / 2);
+      for (let i = 0; i < bonusWins; i++) record(playerRedemption.rec, true);
     }
-  });
+  }
 
   let claimed = null, surrendered = null, jewelV = 0;
   let overflowPending = null;
   if (matchWon) {
     const bestBot = [...botSquad].sort((a, b) => ovr(b) - ovr(a))[0];
-    const inst = makeInstance(bestBot.name, { level: bestBot.botLevel || 1, wins: 1, streak: 1, element: bestBot.element });
+    const inst = makeInstance(bestBot.name, { level: bestBot.botLevel || 1, wins: 1, streak: 1, stats: bestBot.stats, element: bestBot.element });
     if (hoardFull()) {
       // album page is full — the win is real but the slot is decided after the reward
       overflowPending = { instance: inst, player: bestBot };
