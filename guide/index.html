@@ -3,454 +3,933 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#090611">
-<title>Shadowveil Field Guide</title>
+<meta name="theme-color" content="#0b0715">
+<title>Shadowveil: The Arcane Grimoire</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600&family=MedievalSharp&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #090611;
-    --panel: #110b1c;
-    --panel-2: #171026;
-    --ink: #f4f0fb;
-    --muted: #9f95b7;
-    --line: rgba(255,255,255,.1);
-    --gold: #e8c15a;
-    --violet: #9b75ff;
-    --cyan: #7fe7ff;
-    --green: #72e8b0;
-    --red: #ff8e9a;
-    --max: 1220px;
+    --void: #08050f;
+    --night: #0e0919;
+    --paper: #171025;
+    --paper-2: #211637;
+    --paper-3: #2d1c48;
+    --ink: #eee5d4;
+    --muted: #a99abd;
+    --faint: #716486;
+    --gold: #d9b85b;
+    --gold-hi: #ffe6a0;
+    --gold-dim: #82672d;
+    --violet: #a47bff;
+    --blue: #82dcff;
+    --green: #72e3ae;
+    --red: #ff8299;
+    --line: rgba(217,184,91,.2);
+    --line-hi: rgba(217,184,91,.5);
+    --max: 1020px;
   }
   * { box-sizing: border-box; }
   html { scroll-behavior: smooth; }
   body {
     margin: 0; color: var(--ink); background:
-      radial-gradient(900px 500px at 90% -10%, rgba(138,92,246,.2), transparent 65%),
-      radial-gradient(700px 480px at 0 90%, rgba(232,193,90,.08), transparent 65%),
-      var(--bg);
-    font-family: "Segoe UI", system-ui, sans-serif; line-height: 1.6;
+      radial-gradient(700px 500px at 8% 15%, rgba(112,61,201,.2), transparent 70%),
+      radial-gradient(800px 550px at 92% 80%, rgba(31,116,161,.12), transparent 70%),
+      radial-gradient(500px 360px at 50% 40%, rgba(217,184,91,.06), transparent 70%),
+      var(--void);
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    font-size: 17px; line-height: 1.72;
+    -webkit-font-smoothing: antialiased;
   }
-  body::before { content: ""; position: fixed; inset: 0; pointer-events: none; opacity: .035; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='150'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='150' height='150' filter='url(%23n)'/%3E%3C/svg%3E"); }
+  body::before {
+    content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 1; opacity: .055;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)' opacity='.8'/%3E%3C/svg%3E");
+  }
+  body::after {
+    content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    opacity: .28; background-image:
+      radial-gradient(circle, rgba(255,230,160,.7) 0 1px, transparent 1.5px),
+      radial-gradient(circle, rgba(164,123,255,.7) 0 1px, transparent 1.5px);
+    background-size: 91px 107px, 137px 151px;
+    background-position: 18px 24px, 62px 79px;
+    animation: star-drift 28s linear infinite;
+  }
   a { color: inherit; }
-  .guide-shell { display: grid; grid-template-columns: 235px minmax(0, 1fr); width: min(var(--max), 100%); min-height: 100vh; margin: 0 auto; }
-  .guide-nav { position: sticky; top: 0; align-self: start; height: 100vh; padding: 30px 22px; border-right: 1px solid var(--line); background: rgba(9,6,17,.7); backdrop-filter: blur(14px); }
-  .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; color: var(--gold); font-size: 12px; font-weight: 800; letter-spacing: 3px; text-decoration: none; text-transform: uppercase; }
-  .brand-mark { display: grid; place-items: center; width: 28px; height: 28px; border: 1px solid var(--gold); border-radius: 50%; box-shadow: 0 0 18px rgba(232,193,90,.28); font-size: 15px; }
-  .nav-label { margin: 22px 0 8px; color: #6f6585; font-size: 9px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; }
-  .guide-nav nav { display: flex; flex-direction: column; gap: 3px; }
-  .guide-nav nav a { padding: 7px 9px; border-radius: 8px; color: var(--muted); font-size: 12px; text-decoration: none; transition: color .2s, background .2s, transform .2s; }
-  .guide-nav nav a:hover { color: var(--ink); background: rgba(138,92,246,.14); transform: translateX(3px); }
-  .back-link { display: inline-flex; margin-top: 25px; padding: 9px 12px; border: 1px solid rgba(232,193,90,.35); border-radius: 999px; color: var(--gold); font-size: 10px; letter-spacing: 1px; text-decoration: none; text-transform: uppercase; }
-  main { min-width: 0; padding: 0 56px 80px; }
-  .hero { position: relative; display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(260px, .95fr); align-items: center; gap: 30px; min-height: 520px; padding: 58px 0 46px; }
-  .eyebrow { color: var(--gold); font-size: 10px; font-weight: 800; letter-spacing: 4px; text-transform: uppercase; }
-  h1 { max-width: 680px; margin: 12px 0 15px; font-size: clamp(42px, 7vw, 86px); letter-spacing: 5px; line-height: .95; background: linear-gradient(105deg, #fff, var(--gold) 42%, #fff 58%, var(--violet)); -webkit-background-clip: text; background-clip: text; color: transparent; }
-  .hero-lead { max-width: 560px; margin: 0; color: var(--muted); font-size: 17px; letter-spacing: .4px; }
-  .hero-note { display: inline-flex; gap: 8px; align-items: center; margin-top: 24px; padding: 8px 12px; border: 1px solid rgba(232,193,90,.24); border-radius: 999px; background: rgba(232,193,90,.06); color: #d7c8a5; font-size: 11px; }
-  .hero-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
-  .guide-cta { display: inline-flex; align-items: center; gap: 8px; padding: 11px 16px; border: 1px solid rgba(232,193,90,.58); border-radius: 999px; background: linear-gradient(120deg, var(--gold), #c9a64a); color: #0a120d; font-size: 10px; font-weight: 800; letter-spacing: 1.5px; text-decoration: none; text-transform: uppercase; box-shadow: 0 8px 24px rgba(232,193,90,.16); }
-  .guide-cta:hover { transform: translateY(-2px); box-shadow: 0 12px 30px rgba(232,193,90,.28); }
-  .guide-cta-icon { font-size: 15px; line-height: 1; }
-  .hero-visual { position: relative; min-height: 350px; display: grid; place-items: center; }
-  .hero-visual svg { width: min(100%, 430px); overflow: visible; filter: drop-shadow(0 25px 45px rgba(0,0,0,.55)); }
-  .quick-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 0 0 70px; }
-  .quick-card { padding: 18px; border: 1px solid var(--line); border-radius: 14px; background: linear-gradient(145deg, rgba(138,92,246,.1), rgba(255,255,255,.025)); }
-  .quick-card b { display: block; margin-bottom: 3px; color: var(--gold); font-size: 22px; line-height: 1; }
-  .quick-card span { color: var(--muted); font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; }
-  section { scroll-margin-top: 30px; margin-top: 74px; }
-  .section-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
-  .section-heading > div { min-width: 0; }
-  h2 { margin: 0; color: var(--cream, #f5ead0); font-size: clamp(25px, 4vw, 39px); letter-spacing: 1px; line-height: 1.1; }
-  h2 span { color: var(--gold); }
-  .section-kicker { color: var(--violet); font-size: 9px; font-weight: 800; letter-spacing: 3px; text-transform: uppercase; white-space: nowrap; }
-  .section-intro { max-width: 690px; margin: -7px 0 20px; color: var(--muted); font-size: 13px; }
-  .panel { padding: 22px; border: 1px solid var(--line); border-radius: 16px; background: linear-gradient(145deg, rgba(255,255,255,.045), rgba(255,255,255,.015)); box-shadow: 0 20px 55px rgba(0,0,0,.16); }
-  .panel + .panel { margin-top: 14px; }
-  .panel h3 { margin: 0 0 10px; color: var(--gold); font-size: 15px; letter-spacing: 1px; text-transform: uppercase; }
-  .panel p { margin: 7px 0; color: var(--muted); font-size: 13px; }
-  .panel strong, .panel b { color: var(--ink); }
-  .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; counter-reset: guide; }
-  .step { position: relative; min-height: 175px; padding: 20px 17px 16px; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); }
-  .step::before { counter-increment: guide; content: "0" counter(guide); display: block; margin-bottom: 20px; color: var(--gold); font-size: 26px; font-weight: 800; letter-spacing: 2px; line-height: 1; }
-  .step h3 { margin: 0 0 7px; color: var(--ink); font-size: 14px; }
-  .step p { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.65; }
-  .card-facts { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-  .fact-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
-  .fact-list li { display: grid; grid-template-columns: 24px 1fr; gap: 9px; align-items: start; color: var(--muted); font-size: 12px; }
-  .fact-list li::before { content: "✦"; color: var(--gold); }
-  .fact-list b { color: var(--ink); }
-  .rarity-ladder { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 14px; }
-  .rarity-chip { padding: 10px 8px; border: 1px solid var(--rarity, var(--line)); border-radius: 9px; background: color-mix(in srgb, var(--rarity) 10%, transparent); color: var(--rarity); font-size: 9px; font-weight: 800; letter-spacing: 1px; text-align: center; text-transform: uppercase; }
-  .battle-layout { display: grid; grid-template-columns: minmax(0, 1fr) 120px minmax(0, 1fr); gap: 12px; align-items: center; }
-  .side-board { padding: 16px 12px; border: 1px solid rgba(138,92,246,.35); border-radius: 14px; background: rgba(138,92,246,.08); text-align: center; }
-  .side-board.enemy { border-color: rgba(255,80,80,.35); background: rgba(255,80,80,.07); }
-  .side-board h3 { margin: 0 0 12px; color: #c7b6ff; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; }
-  .side-board.enemy h3 { color: #ffaaa0; }
-  .mini-cards { display: flex; justify-content: center; gap: 5px; }
-  .mini-card { width: 44px; aspect-ratio: 2 / 2.9; border: 1px solid rgba(255,255,255,.26); border-radius: 6px; background: linear-gradient(160deg, #38245e, #130a25); box-shadow: 0 7px 15px rgba(0,0,0,.3); }
-  .mini-card.reserve { border-color: var(--gold); background: repeating-linear-gradient(135deg, rgba(232,193,90,.14) 0 3px, rgba(20,10,32,.5) 3px 7px), #180e29; }
-  .active-card { width: 68px; aspect-ratio: 2 / 2.9; margin: 13px auto 0; border: 2px solid var(--gold); border-radius: 9px; background: linear-gradient(155deg, #4b337a, #171027); box-shadow: 0 0 22px rgba(232,193,90,.22); }
-  .active-card.enemy { border-color: #ff8e9a; background: linear-gradient(155deg, #632b43, #1c0b1c); }
-  .board-vs { display: grid; place-items: center; gap: 12px; color: var(--gold); text-align: center; }
-  .board-vs strong { display: grid; place-items: center; width: 64px; height: 64px; border: 1px solid rgba(232,193,90,.65); border-radius: 50%; background: rgba(232,193,90,.08); font-size: 13px; letter-spacing: 2px; }
-  .board-vs span { color: var(--muted); font-size: 9px; letter-spacing: 2px; text-transform: uppercase; }
-  .rule-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
-  .rule { padding: 16px; border-left: 3px solid var(--violet); border-radius: 9px; background: rgba(138,92,246,.07); }
-  .rule.gold { border-left-color: var(--gold); background: rgba(232,193,90,.06); }
-  .rule h3 { margin-bottom: 5px; font-size: 12px; }
-  .rule p { margin: 0; font-size: 11px; }
-  .element-layout { display: grid; grid-template-columns: minmax(220px, .8fr) minmax(0, 1.2fr); gap: 18px; align-items: center; }
-  .element-wheel { display: grid; place-items: center; padding: 10px; }
-  .element-wheel svg { width: min(100%, 300px); }
-  .element-table { width: 100%; border-collapse: collapse; overflow: hidden; border: 1px solid var(--line); border-radius: 12px; font-size: 12px; }
-  .element-table th, .element-table td { padding: 10px 12px; border-bottom: 1px solid var(--line); text-align: left; }
-  .element-table th { color: var(--gold); background: rgba(232,193,90,.07); font-size: 9px; letter-spacing: 2px; text-transform: uppercase; }
-  .element-table tr:last-child td { border-bottom: 0; }
-  .element-table td { color: var(--muted); }
-  .element-table td:first-child { color: var(--ink); font-weight: 700; }
-  .element-table td:nth-child(2) { color: var(--green); }
-  .element-table td:nth-child(3) { color: var(--red); }
-  .callout { margin-top: 14px; padding: 13px 15px; border: 1px solid rgba(127,212,255,.24); border-radius: 10px; background: rgba(127,212,255,.06); color: #bfeaff; font-size: 12px; }
-  .relic-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
-  .relic { min-height: 155px; padding: 15px 12px; border: 1px solid rgba(200,166,106,.32); border-radius: 13px; background: linear-gradient(155deg, rgba(200,166,106,.15), rgba(10,8,20,.75)); }
-  .relic.rare { border-color: rgba(201,139,255,.5); background: linear-gradient(155deg, rgba(201,139,255,.16), rgba(10,8,20,.75)); }
-  .relic-icon { font-size: 27px; line-height: 1; }
-  .relic h3 { margin: 10px 0 5px; color: var(--ink); font-size: 12px; letter-spacing: .5px; }
-  .relic p { margin: 0; color: var(--muted); font-size: 10px; line-height: 1.55; }
-  .relic .relic-tag { display: inline-block; margin-top: 9px; color: var(--gold); font-size: 8px; letter-spacing: 1px; text-transform: uppercase; }
-  .evolution-track { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; position: relative; }
-  .evolution-track::before { content: ""; position: absolute; top: 43px; left: 14%; right: 14%; height: 1px; background: linear-gradient(90deg, var(--violet), var(--gold)); opacity: .55; }
-  .evo-card { position: relative; z-index: 1; min-height: 205px; padding: 18px; border: 1px solid rgba(138,92,246,.35); border-radius: 15px; background: linear-gradient(155deg, rgba(138,92,246,.13), rgba(10,7,18,.85)); }
-  .evo-card.second { border-color: rgba(127,231,255,.5); background: linear-gradient(155deg, rgba(127,231,255,.12), rgba(10,14,28,.85)); }
-  .evo-card.god { border-color: rgba(255,212,95,.65); background: linear-gradient(155deg, rgba(232,193,90,.16), rgba(36,13,31,.88)); box-shadow: 0 0 35px rgba(232,193,90,.12); }
-  .evo-orb { display: grid; place-items: center; width: 50px; height: 50px; margin-bottom: 18px; border: 1px solid var(--violet); border-radius: 50%; background: #1b1032; color: #c9b6ff; font-size: 20px; }
-  .second .evo-orb { border-color: var(--cyan); background: #10283b; color: var(--cyan); }
-  .god .evo-orb { border: 2px solid var(--gold); background: radial-gradient(circle, #ffe9a1, #ac741d); color: #261607; box-shadow: 0 0 22px rgba(232,193,90,.4); }
-  .evo-card h3 { margin: 0 0 4px; color: var(--ink); font-size: 14px; }
-  .evo-card .range { color: var(--gold); font-size: 10px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; }
-  .evo-card p { margin: 12px 0 0; color: var(--muted); font-size: 11px; }
-  .god-tier-note { margin-top: 16px; padding: 14px 16px; border: 1px solid rgba(255,212,95,.35); border-radius: 10px; background: rgba(232,193,90,.07); color: #ffe9a1; font-size: 12px; }
-  .economy-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-  .money-list { display: grid; gap: 8px; }
-  .money-row { display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 12px; }
-  .money-row:last-child { border-bottom: 0; }
-  .money-row b { color: var(--gold); white-space: nowrap; }
-  .danger-box { border-color: rgba(255,80,120,.35); background: rgba(255,80,120,.06); }
-  .danger-box h3 { color: #ff9aa8; }
-  .tip-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-  .tip { padding: 14px; border: 1px solid var(--line); border-radius: 11px; background: rgba(255,255,255,.025); }
-  .tip b { display: block; margin-bottom: 4px; color: var(--gold); font-size: 11px; text-transform: uppercase; }
-  .tip span { color: var(--muted); font-size: 11px; }
-  footer { margin-top: 75px; padding-top: 24px; border-top: 1px solid var(--line); color: #6f6585; font-size: 10px; letter-spacing: 2px; text-align: center; text-transform: uppercase; }
-  @media (max-width: 980px) {
-    .guide-shell { display: block; }
-    .guide-nav { position: sticky; z-index: 10; top: 0; width: 100%; height: auto; padding: 13px 18px; border-right: 0; border-bottom: 1px solid var(--line); }
-    .brand { display: inline-flex; margin: 0 20px 0 0; }
-    .nav-label, .back-link { display: none; }
-    .guide-nav nav { display: inline-flex; flex-direction: row; max-width: calc(100% - 170px); overflow-x: auto; vertical-align: middle; }
-    .guide-nav nav a { flex: none; font-size: 10px; }
-    main { padding: 0 30px 65px; }
+  button { font: inherit; }
+  code { color: var(--blue); font-family: Consolas, monospace; font-size: .82em; }
+
+  /* Arcane atmosphere */
+  .motes { position: fixed; inset: 0; z-index: 2; pointer-events: none; overflow: hidden; }
+  .motes i {
+    position: absolute; left: var(--x); top: var(--y); width: var(--s); height: var(--s);
+    border-radius: 50%; background: var(--c); box-shadow: 0 0 12px 2px var(--c);
+    opacity: 0; animation: mote-float var(--d) ease-in-out var(--delay) infinite;
   }
-  @media (max-width: 720px) {
+  .arcane-aura {
+    position: fixed; z-index: 0; pointer-events: none; width: 62vw; height: 62vw; max-width: 760px; max-height: 760px;
+    border-radius: 50%; opacity: .28; filter: blur(28px);
+    background: conic-gradient(from 20deg, transparent, rgba(164,123,255,.25), transparent 24%, rgba(217,184,91,.18), transparent 48%, rgba(82,220,255,.15), transparent 72%);
+    animation: aura-breathe 16s ease-in-out infinite;
+  }
+  .arcane-aura.left { left: -28vw; top: 19vh; }
+  .arcane-aura.right { right: -30vw; top: 59vh; animation-delay: -7s; animation-direction: reverse; }
+  .aether-glow {
+    position: fixed; z-index: 1; left: var(--mx, 50vw); top: var(--my, 42vh); width: 260px; height: 260px;
+    pointer-events: none; border-radius: 50%; opacity: .27; transform: translate(-50%, -50%);
+    background: radial-gradient(circle, rgba(164,123,255,.2), rgba(82,220,255,.08) 30%, transparent 70%);
+    filter: blur(9px); transition: left .18s ease-out, top .18s ease-out;
+  }
+  .rune-orbit {
+    position: fixed; z-index: 1; pointer-events: none; width: 210px; height: 210px; opacity: .17;
+    border: 1px solid var(--gold-dim); border-radius: 50%; animation: orbit-drift 34s linear infinite;
+  }
+  .rune-orbit::before, .rune-orbit::after { content: ""; position: absolute; inset: 22px; border: 1px dashed var(--violet); border-radius: 50%; }
+  .rune-orbit::after { inset: 57px; border: 1px solid var(--blue); transform: rotate(45deg); }
+  .rune-orbit span { position: absolute; top: -12px; left: 50%; color: var(--gold-hi); font-size: 18px; text-shadow: 0 0 12px var(--gold); }
+  .rune-orbit.left { left: -112px; top: 37vh; }
+  .rune-orbit.right { right: -112px; top: 72vh; animation: orbit-drift-reverse 41s linear infinite; }
+  .spell-ripple {
+    position: fixed; z-index: 85; width: 34px; height: 34px; pointer-events: none;
+    border: 1px solid var(--gold-hi); border-radius: 50%;
+    box-shadow: 0 0 14px var(--gold), inset 0 0 10px rgba(164,123,255,.7);
+    animation: spell-ripple .8s ease-out forwards;
+  }
+  .spell-ripple::before, .spell-ripple::after { content: ""; position: absolute; inset: 7px; border: 1px dashed var(--violet); transform: rotate(45deg); }
+  .spell-ripple::after { inset: 13px; border-color: var(--blue); border-style: solid; }
+  .glyph-spark { position: fixed; z-index: 86; left: var(--x); top: var(--y); pointer-events: none; color: var(--gold-hi); font-size: 17px; text-shadow: 0 0 12px var(--gold), 0 0 22px var(--violet); animation: glyph-rise 1.1s ease-out var(--delay, 0s) forwards; }
+  @keyframes star-drift { to { background-position: 109px 131px, 4px 3px; } }
+  @keyframes mote-float {
+    0%, 100% { opacity: 0; transform: translate3d(0, 15px, 0) scale(.5); }
+    25%, 70% { opacity: .7; }
+    50% { transform: translate3d(var(--dx), -35px, 0) scale(1); }
+  }
+  @keyframes sigil-pulse {
+    0%, 100% { filter: drop-shadow(0 0 10px rgba(217,184,91,.2)); opacity: .85; }
+    50% { filter: drop-shadow(0 0 28px rgba(164,123,255,.5)); opacity: 1; }
+  }
+  @keyframes rune-spin { to { transform: rotate(360deg); } }
+  @keyframes rune-spin-reverse { to { transform: rotate(-360deg); } }
+  @keyframes ink-glow {
+    0%, 100% { text-shadow: 0 0 8px rgba(217,184,91,.2); }
+    50% { text-shadow: 0 0 18px rgba(217,184,91,.55), 0 0 34px rgba(164,123,255,.2); }
+  }
+  @keyframes aura-breathe {
+    0%, 100% { opacity: .24; transform: scale(1) rotate(0deg); }
+    50% { opacity: .48; transform: scale(1.12) rotate(8deg); }
+  }
+  @keyframes orbit-drift { to { transform: rotate(360deg); } }
+  @keyframes orbit-drift-reverse { to { transform: rotate(-360deg); } }
+  @keyframes frame-breathe {
+    0%, 100% { box-shadow: inset 0 0 0 5px rgba(217,184,91,.025), 0 0 28px rgba(164,123,255,.035); }
+    50% { box-shadow: inset 0 0 0 5px rgba(217,184,91,.07), 0 0 42px rgba(164,123,255,.12); }
+  }
+  @keyframes page-aura {
+    0%, 100% { background-position: 0% 0%, 0 0; }
+    50% { background-position: 100% 30%, 0 0; }
+  }
+  @keyframes rune-flicker {
+    0%, 100% { opacity: .55; text-shadow: 0 0 7px rgba(217,184,91,.35); }
+    48% { opacity: .55; }
+    52% { opacity: 1; text-shadow: 0 0 18px rgba(217,184,91,.9), 0 0 32px rgba(164,123,255,.45); }
+  }
+  @keyframes spell-scan { from { transform: translateX(-140%); } to { transform: translateX(760%); } }
+  @keyframes spell-ripple {
+    0% { opacity: .9; transform: translate(-50%, -50%) scale(.2) rotate(0deg); }
+    65% { opacity: .55; }
+    100% { opacity: 0; transform: translate(-50%, -50%) scale(5) rotate(90deg); }
+  }
+  @keyframes glyph-rise {
+    0% { opacity: 0; transform: translate3d(0, 16px, 0) scale(.6) rotate(-18deg); }
+    35%, 70% { opacity: .85; }
+    100% { opacity: 0; transform: translate3d(var(--drift, 0px), -46px, 0) scale(1.2) rotate(18deg); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; }
+    .aether-glow, .rune-orbit { display: none; }
+  }
+
+  /* The book itself */
+  .book {
+    position: relative; z-index: 3; width: min(var(--max), 100%); min-height: 100vh; margin: 0 auto;
+    background:
+      linear-gradient(90deg, rgba(0,0,0,.45), transparent 3%, transparent 97%, rgba(0,0,0,.4)),
+      var(--paper);
+    border-left: 1px solid rgba(217,184,91,.25);
+    border-right: 1px solid rgba(217,184,91,.25);
+    box-shadow: -30px 0 70px rgba(0,0,0,.62), 30px 0 70px rgba(0,0,0,.62), inset 0 0 80px rgba(0,0,0,.2);
+  }
+  .book::before, .book::after {
+    content: ""; position: absolute; top: 0; bottom: 0; width: 1px; pointer-events: none;
+    background: linear-gradient(180deg, transparent, rgba(217,184,91,.42) 15%, rgba(164,123,255,.28) 50%, rgba(217,184,91,.42) 85%, transparent);
+    opacity: .55;
+  }
+  .book::before { left: 8px; }
+  .book::after { right: 8px; }
+  .leaf {
+    position: relative; overflow: hidden; padding: 64px 74px 54px;
+    border-bottom: 1px solid var(--line); scroll-margin-top: 24px;
+    background:
+      radial-gradient(ellipse at 50% 0%, rgba(164,123,255,.075), transparent 46%),
+      linear-gradient(90deg, rgba(0,0,0,.11), transparent 11%, transparent 89%, rgba(0,0,0,.12));
+    background-size: 150% 150%, 100% 100%;
+    animation: page-aura 16s ease-in-out infinite;
+  }
+  .leaf::before {
+    content: ""; position: absolute; inset: 22px 28px; pointer-events: none;
+    border: 1px solid rgba(217,184,91,.17);
+    box-shadow: inset 0 0 0 5px rgba(217,184,91,.025), 0 0 28px rgba(164,123,255,.035);
+    animation: frame-breathe 8s ease-in-out infinite;
+  }
+  .leaf::after {
+    content: "✦"; position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+    color: var(--gold-dim); font-size: 13px; pointer-events: none; text-shadow: 0 0 12px rgba(217,184,91,.5);
+    animation: rune-flicker 6s ease-in-out infinite;
+  }
+  .leaf > * { position: relative; z-index: 1; }
+
+  /* Cover */
+  .cover {
+    display: grid; place-items: center; min-height: 760px; padding: 70px 40px; text-align: center;
+    background:
+      radial-gradient(circle at 50% 45%, rgba(164,123,255,.15), transparent 28%),
+      radial-gradient(circle at 50% 45%, rgba(217,184,91,.08), transparent 54%),
+      var(--night);
+  }
+  .cover::before { inset: 26px; border: 2px solid rgba(217,184,91,.33); box-shadow: inset 0 0 0 7px rgba(217,184,91,.04), inset 0 0 45px rgba(164,123,255,.08), 0 0 22px rgba(217,184,91,.08); animation: frame-breathe 7s ease-in-out infinite; }
+  .cover::after { top: 34px; font-size: 20px; color: var(--gold); }
+  .cover-content { max-width: 640px; }
+  .cover-kicker { color: var(--violet); font-family: 'Cinzel', serif; font-size: 10px; font-weight: 700; letter-spacing: 5px; text-transform: uppercase; }
+  .cover h1 {
+    margin: 24px 0 12px; font-family: 'Cinzel', serif; font-size: clamp(40px, 7vw, 78px); font-weight: 900;
+    letter-spacing: 8px; line-height: 1; text-transform: uppercase;
+    background: linear-gradient(180deg, var(--gold-hi), var(--gold) 45%, var(--violet));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    animation: ink-glow 4s ease-in-out infinite;
+  }
+  .cover-sub { color: var(--muted); font-family: 'Cinzel', serif; font-size: 11px; letter-spacing: 5px; text-transform: uppercase; }
+  .cover-note { max-width: 430px; margin: 28px auto 0; color: var(--muted); font-style: italic; font-size: 16px; }
+  .cover-links { display: flex; justify-content: center; flex-wrap: wrap; gap: 10px; margin-top: 30px; }
+  .cover-link {
+    display: inline-flex; align-items: center; gap: 7px; padding: 10px 16px;
+    border: 1px solid var(--line-hi); border-radius: 4px; color: var(--gold-hi);
+    background: rgba(217,184,91,.06); font-family: 'Cinzel', serif; font-size: 9px;
+    letter-spacing: 1.5px; text-decoration: none; text-transform: uppercase; transition: all .2s;
+  }
+  .cover-link:hover { border-color: var(--gold-hi); background: rgba(217,184,91,.14); box-shadow: 0 0 20px rgba(217,184,91,.16); }
+  .cover-link.secondary { color: var(--muted); border-color: var(--line); background: transparent; }
+  .sigil {
+    position: relative; display: grid; place-items: center; width: 188px; height: 188px; margin: 0 auto;
+    border: 1px solid var(--gold-dim); border-radius: 50%; color: var(--gold-hi); font-size: 48px;
+    animation: sigil-pulse 4s ease-in-out infinite;
+  }
+  .sigil::before, .sigil::after { content: ""; position: absolute; border-radius: 50%; }
+  .sigil::before { inset: 13px; border: 1px dashed var(--violet); animation: rune-spin 22s linear infinite; }
+  .sigil::after { inset: 30px; border: 1px solid var(--gold-dim); transform: rotate(45deg); animation: rune-spin-reverse 16s linear infinite; }
+  .sigil span { position: relative; z-index: 1; text-shadow: 0 0 20px rgba(255,230,160,.8); }
+  .sigil { cursor: pointer; transition: transform .25s ease; }
+  .sigil:hover { transform: scale(1.06); }
+  .cover-meta { margin-top: 46px; color: var(--faint); font-family: 'Cinzel', serif; font-size: 8px; letter-spacing: 3px; text-transform: uppercase; }
+
+  /* Contents page */
+  .contents-head, .chapter-head { text-align: center; padding-bottom: 28px; margin-bottom: 28px; border-bottom: 1px solid var(--line); }
+  .section-kicker, .chapter-number { color: var(--violet); font-family: 'Cinzel', serif; font-size: 9px; font-weight: 700; letter-spacing: 4px; text-transform: uppercase; }
+  .section-title, .chapter-title { margin: 7px 0 6px; color: var(--gold); font-family: 'Cinzel', serif; font-size: clamp(25px, 4vw, 38px); font-weight: 900; letter-spacing: 3px; line-height: 1.1; text-transform: uppercase; text-shadow: 0 0 18px rgba(217,184,91,.18); }
+  .section-subtitle, .chapter-subtitle { color: var(--muted); font-size: 16px; font-style: italic; }
+  .magic-rule { display: flex; align-items: center; gap: 12px; width: min(310px, 80%); margin: 18px auto 0; color: var(--gold); font-size: 13px; }
+  .magic-rule::before, .magic-rule::after { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg, transparent, var(--gold-dim)); }
+  .magic-rule::after { background: linear-gradient(90deg, var(--gold-dim), transparent); }
+  .magic-rule span { text-shadow: 0 0 13px rgba(217,184,91,.8); }
+  .contents-intro { max-width: 640px; margin: 0 auto 28px; text-align: center; color: var(--muted); }
+  .toc { display: grid; grid-template-columns: 1fr 1fr; gap: 9px 24px; max-width: 760px; margin: auto; }
+  .toc a {
+    display: grid; grid-template-columns: 36px 1fr auto; gap: 9px; align-items: center; padding: 10px 4px;
+    border-bottom: 1px solid var(--line); color: var(--muted); text-decoration: none; transition: all .18s;
+  }
+  .toc a:hover { padding-left: 9px; color: var(--gold-hi); border-color: var(--gold-dim); }
+  .toc .toc-num { color: var(--gold); font-family: 'Cinzel', serif; font-size: 10px; }
+  .toc .toc-title { font-family: 'Cinzel', serif; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; }
+  .toc .toc-page { color: var(--faint); font-size: 12px; }
+
+  /* Chapters */
+  .chapter-head { position: relative; }
+  .chapter-seal {
+    position: relative; display: grid; place-items: center; width: 78px; height: 78px; margin: 0 auto 16px;
+    border: 1px solid var(--gold-dim); border-radius: 50%; color: var(--gold-hi); font-family: 'Cinzel', serif; font-size: 19px; font-weight: 700;
+    box-shadow: 0 0 20px rgba(164,123,255,.13), inset 0 0 18px rgba(217,184,91,.08);
+  }
+  .chapter-seal::before, .chapter-seal::after { content: ""; position: absolute; border-radius: 50%; }
+  .chapter-seal::before { inset: 7px; border: 1px dashed var(--violet); animation: rune-spin 18s linear infinite; }
+  .chapter-seal::after { inset: 17px; border: 1px solid rgba(217,184,91,.38); transform: rotate(45deg); }
+  .chapter-seal { transition: transform .25s ease, box-shadow .25s ease; }
+  .chapter-seal:hover { transform: scale(1.08); box-shadow: 0 0 34px rgba(164,123,255,.3), inset 0 0 24px rgba(217,184,91,.16); }
+  .chapter-title { animation: ink-glow 7s ease-in-out infinite; }
+  .chapter { scroll-margin-top: 18px; }
+  h2 { margin: 30px 0 12px; padding-bottom: 7px; border-bottom: 1px solid var(--line); color: var(--gold); font-family: 'Cinzel', serif; font-size: 19px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; }
+  h3 { margin: 23px 0 7px; color: var(--gold-dim); font-family: 'Cinzel', serif; font-size: 13px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; }
+  p { margin: 0 0 12px; color: var(--muted); text-align: justify; hyphens: auto; }
+  p + p { text-indent: 1.4em; }
+  .drop::first-letter { float: left; margin: 7px 11px 0 0; color: var(--gold-hi); font-family: 'Cinzel', serif; font-size: 57px; font-weight: 900; line-height: .72; text-shadow: 0 0 16px rgba(217,184,91,.42); }
+  b, strong { color: var(--ink); font-weight: 700; }
+  .em { color: var(--gold-hi); }
+  .blue { color: var(--blue); }
+  .green { color: var(--green); }
+  .red { color: var(--red); }
+
+  /* Reference tables */
+  .table-scroll { overflow-x: auto; margin: 15px 0; border: 1px solid var(--line); }
+  table { width: 100%; min-width: 490px; border-collapse: collapse; font-size: 14px; }
+  th { padding: 10px 12px; background: rgba(217,184,91,.07); border-bottom: 1px solid var(--line-hi); color: var(--gold); font-family: 'Cinzel', serif; font-size: 8px; font-weight: 700; letter-spacing: 2px; text-align: left; text-transform: uppercase; }
+  td { padding: 8px 12px; border-bottom: 1px solid var(--line); color: var(--muted); vertical-align: top; }
+  tr:last-child td { border-bottom: 0; }
+  td:first-child { color: var(--ink); font-weight: 600; }
+  .num { color: var(--gold-hi); font-family: 'Cinzel', serif; font-size: 12px; font-weight: 700; white-space: nowrap; }
+
+  /* Spell boxes and lists */
+  .spellbox { position: relative; overflow: hidden; margin: 16px 0; padding: 17px 20px 15px; border: 1px solid var(--line-hi); border-left: 3px solid var(--gold); background: linear-gradient(135deg, rgba(217,184,91,.08), rgba(164,123,255,.035)); box-shadow: inset 0 0 24px rgba(164,123,255,.035); transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease; }
+  .spellbox::after { content: ""; position: absolute; top: 0; left: -20%; width: 16%; height: 1px; background: linear-gradient(90deg, transparent, var(--gold-hi), transparent); box-shadow: 0 0 12px 2px var(--violet); animation: spell-scan 7s linear infinite; pointer-events: none; }
+  .spellbox::before { content: "✦"; position: absolute; top: -11px; left: 13px; padding: 0 5px; background: var(--paper); color: var(--gold); font-size: 13px; text-shadow: 0 0 10px rgba(217,184,91,.8); }
+  .spellbox:hover { transform: translateY(-2px); border-color: var(--gold-hi); box-shadow: inset 0 0 30px rgba(164,123,255,.08), 0 0 24px rgba(164,123,255,.1); }
+  .spellbox h4 { margin: 0 0 6px; color: var(--gold-hi); font-family: 'Cinzel', serif; font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; }
+  .spellbox p { margin: 0; font-size: 14px; text-align: left; }
+  .spellbox.violet { border-left-color: var(--violet); background: linear-gradient(135deg, rgba(164,123,255,.1), rgba(0,0,0,.08)); }
+  .spellbox.violet h4 { color: #c3aaff; }
+  .spellbox.danger { border-left-color: var(--red); background: rgba(255,130,153,.045); }
+  .spellbox.danger h4 { color: var(--red); }
+  .rune-list { display: grid; gap: 7px; margin: 12px 0; padding: 0; list-style: none; }
+  .rune-list li { display: grid; grid-template-columns: 20px 1fr; gap: 7px; color: var(--muted); font-size: 14px; }
+  .rune-list li::before { content: "✧"; color: var(--gold); text-shadow: 0 0 8px rgba(217,184,91,.6); }
+
+  /* Grids */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin: 14px 0; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 14px 0; }
+  .panel { padding: 15px 16px; border: 1px solid var(--line); background: rgba(0,0,0,.1); transition: border-color .22s ease, background .22s ease, transform .22s ease; }
+  .panel:hover { transform: translateY(-2px); border-color: var(--line-hi); background: rgba(164,123,255,.06); }
+  .panel h3 { margin-top: 0; }
+
+  /* Rarities */
+  .rarity-row { display: flex; flex-wrap: wrap; gap: 7px; margin: 13px 0; }
+  .rarity { padding: 5px 9px; border: 1px solid var(--r); border-radius: 3px; background: rgba(0,0,0,.15); color: var(--r); font-family: 'Cinzel', serif; font-size: 8px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+
+  /* Battle and evolution diagrams */
+  .battle-board { margin: 17px 0; padding: 20px 14px; border: 1px solid var(--line-hi); background: radial-gradient(circle at center, rgba(164,123,255,.1), transparent 60%), rgba(0,0,0,.18); text-align: center; }
+  .board-label { color: var(--gold-dim); font-family: 'Cinzel', serif; font-size: 8px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; }
+  .board-row { display: flex; justify-content: center; gap: 8px; margin: 7px 0; }
+  .board-card { width: 42px; height: 60px; border: 1px solid var(--line); border-radius: 4px; background: linear-gradient(160deg, var(--paper-3), var(--night)); transition: transform .2s ease, box-shadow .2s ease; }
+  .board-card:hover { transform: translateY(-5px); box-shadow: 0 0 18px rgba(164,123,255,.25); }
+  .board-card.hidden { border-style: dashed; opacity: .42; }
+  .board-vs { display: inline-block; margin: 9px 0; padding: 5px 14px; border: 1px solid var(--gold-dim); border-radius: 50%; color: var(--gold-hi); font-family: 'Cinzel', serif; font-size: 10px; letter-spacing: 2px; box-shadow: 0 0 15px rgba(217,184,91,.13); }
+  .evo-track { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 17px 0; position: relative; }
+  .evo-track::before { content: ""; position: absolute; top: 35px; left: 10%; right: 10%; height: 1px; background: linear-gradient(90deg, var(--violet), var(--gold), var(--red)); opacity: .7; }
+  .evo { position: relative; z-index: 1; padding: 18px 13px; border: 1px solid var(--line); background: var(--paper-2); text-align: center; }
+  .evo.s2 { border-color: rgba(114,227,174,.35); }
+  .evo.s3 { border-color: var(--gold-dim); box-shadow: 0 0 20px rgba(217,184,91,.08); }
+  .evo-orb { display: grid; place-items: center; width: 42px; height: 42px; margin: 0 auto 10px; border: 1px solid var(--gold-dim); border-radius: 50%; background: var(--paper); color: var(--gold-hi); font-family: 'Cinzel', serif; font-size: 17px; font-weight: 700; }
+  .evo.s2 .evo-orb { border-color: var(--green); color: var(--green); }
+  .evo.s3 .evo-orb { border-color: var(--gold); background: radial-gradient(circle, var(--gold), #5a3f1b); color: #1b1008; }
+  .evo h4 { margin: 0 0 2px; color: var(--ink); font-family: 'Cinzel', serif; font-size: 12px; text-transform: uppercase; }
+  .evo .range { color: var(--gold); font-family: 'Cinzel', serif; font-size: 9px; letter-spacing: 1.5px; }
+  .evo p { margin: 8px 0 0; font-size: 12px; text-align: center; }
+
+  /* Relic cards */
+  .relic-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; margin: 16px 0; }
+  .relic { padding: 14px; border: 1px solid var(--line); background: linear-gradient(145deg, rgba(217,184,91,.08), rgba(0,0,0,.15)); transition: transform .24s ease, border-color .24s ease, box-shadow .24s ease; }
+  .relic.rare { border-color: rgba(164,123,255,.43); background: linear-gradient(145deg, rgba(164,123,255,.1), rgba(0,0,0,.15)); }
+  .relic-icon { font-size: 22px; filter: drop-shadow(0 0 8px rgba(217,184,91,.35)); }
+  .relic:hover { transform: translateY(-5px) rotate(-.5deg); border-color: var(--gold-hi); box-shadow: 0 0 24px rgba(217,184,91,.14); }
+  .relic:hover .relic-icon { animation: sigil-pulse 1.5s ease-in-out infinite; }
+  .relic h4 { margin: 6px 0 4px; color: var(--ink); font-family: 'Cinzel', serif; font-size: 12px; }
+  .relic p { margin: 0; font-size: 12px; text-align: left; }
+  .relic-tag { display: inline-block; margin-top: 6px; color: var(--gold); font-family: 'Cinzel', serif; font-size: 8px; letter-spacing: 1px; text-transform: uppercase; }
+
+  /* Page furniture */
+  .page-number { margin-top: 34px; text-align: center; color: var(--gold-dim); font-family: 'Cinzel', serif; font-size: 9px; letter-spacing: 3px; }
+  .page-number::before, .page-number::after { content: "✦"; margin: 0 10px; color: var(--gold); }
+  .book-end { padding: 36px 20px; border-top: 1px solid var(--line-hi); color: var(--gold-dim); font-family: 'Cinzel', serif; font-size: 9px; letter-spacing: 3px; text-align: center; text-transform: uppercase; }
+
+  /* Collapsible contents drawer */
+  .codex-toggle { position: fixed; top: 16px; left: 16px; z-index: 90; display: grid; place-items: center; width: 42px; height: 42px; border: 1px solid var(--line-hi); border-radius: 6px; background: rgba(14,9,25,.9); color: var(--gold-hi); cursor: pointer; font-size: 19px; box-shadow: 0 0 18px rgba(0,0,0,.45), 0 0 12px rgba(164,123,255,.13); transition: all .2s; }
+  .codex-toggle:hover { border-color: var(--gold-hi); box-shadow: 0 0 20px rgba(217,184,91,.3); }
+  .codex-drawer { position: fixed; top: 0; bottom: 0; left: 0; z-index: 100; width: min(290px, 86vw); padding: 30px 20px; overflow-y: auto; background: linear-gradient(180deg, #120b20, #0c0714); border-right: 2px solid var(--gold-dim); box-shadow: 14px 0 40px rgba(0,0,0,.65), inset -8px 0 22px rgba(164,123,255,.06); transform: translateX(-105%); transition: transform .3s ease; }
+  .codex-drawer.open { transform: translateX(0); }
+  .codex-close { position: absolute; top: 12px; right: 12px; width: 28px; height: 28px; border: 1px solid var(--line); border-radius: 4px; background: transparent; color: var(--gold); cursor: pointer; font-size: 18px; }
+  .codex-title { margin: 4px 0 24px; color: var(--gold); font-family: 'Cinzel', serif; font-size: 11px; font-weight: 900; letter-spacing: 3px; text-align: center; text-transform: uppercase; }
+  .codex-group { margin: 16px 0 5px; color: var(--violet); font-family: 'Cinzel', serif; font-size: 8px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; }
+  .codex-nav a { display: block; padding: 5px 8px; border-radius: 3px; color: var(--muted); font-size: 12px; text-decoration: none; transition: all .17s; }
+  .codex-nav a:hover { padding-left: 13px; background: rgba(164,123,255,.1); color: var(--gold-hi); }
+  .codex-return { display: block; margin-top: 24px; padding: 8px; border: 1px solid var(--line); color: var(--gold-dim); font-family: 'Cinzel', serif; font-size: 8px; letter-spacing: 1.5px; text-align: center; text-decoration: none; text-transform: uppercase; }
+  .codex-scrim { position: fixed; inset: 0; z-index: 95; background: rgba(0,0,0,.62); opacity: 0; pointer-events: none; transition: opacity .3s; }
+  .codex-scrim.open { opacity: 1; pointer-events: auto; }
+  body.drawer-open { overflow: hidden; }
+
+  @media (max-width: 760px) {
     body { overflow-x: hidden; }
-    .guide-nav nav { display: flex; width: 100%; max-width: none; margin-top: 8px; padding-bottom: 2px; scrollbar-width: thin; }
-    .guide-nav nav::-webkit-scrollbar { height: 4px; }
-    .hero { gap: 8px; }
-    .hero-visual svg { width: min(92vw, 350px); }
-    .hero-lead { font-size: 15px; }
-    .section-heading { align-items: flex-start; flex-direction: column; gap: 6px; }
-    .section-kicker { font-size: 8px; }
-    .hero { grid-template-columns: 1fr; min-height: auto; padding-top: 42px; }
-    .hero-visual { min-height: 270px; order: -1; }
-    .quick-grid, .steps, .relic-grid, .tip-grid, .rarity-ladder { grid-template-columns: repeat(2, 1fr); }
-    .card-facts, .element-layout, .economy-grid { grid-template-columns: 1fr; }
-    .battle-layout { grid-template-columns: 1fr; }
-    .element-table { display: block; max-width: 100%; overflow-x: auto; white-space: nowrap; }
-    .money-row { align-items: flex-start; font-size: 11px; }
-    .board-vs { grid-row: 2; }
-    .element-wheel { order: -1; }
-    .evolution-track { grid-template-columns: 1fr; }
-    .evolution-track::before { top: 12%; bottom: 12%; left: 43px; right: auto; width: 1px; height: auto; }
-    .evo-card { min-height: 150px; padding-left: 88px; }
-    .evo-orb { position: absolute; left: 18px; top: 18px; }
+    .leaf { padding: 48px 22px 42px; }
+    .leaf::before { inset: 12px 10px; }
+    .cover { min-height: 680px; padding: 60px 20px; }
+    .cover::before { inset: 14px; }
+    .cover h1 { letter-spacing: 4px; }
+    .sigil { width: 150px; height: 150px; font-size: 38px; }
+    .toc, .grid-2, .grid-3, .evo-track { grid-template-columns: 1fr; }
+    .evo-track::before { top: 9%; bottom: 9%; left: 21px; right: auto; width: 1px; height: auto; }
+    .evo { padding-left: 70px; text-align: left; }
+    .evo-orb { position: absolute; left: 14px; top: 17px; }
+    .evo p { text-align: left; }
+    .chapter-title { font-size: 25px; letter-spacing: 2px; }
+    .page-number { margin-top: 25px; }
+    .arcane-aura { width: 86vw; height: 86vw; opacity: .2; filter: blur(20px); }
+    .arcane-aura.left { left: -44vw; top: 15vh; }
+    .arcane-aura.right { right: -44vw; top: 66vh; }
+    .aether-glow { width: 190px; height: 190px; opacity: .18; }
+    .rune-orbit { width: 142px; height: 142px; opacity: .1; }
+    .rune-orbit::before { inset: 15px; }
+    .rune-orbit::after { inset: 38px; }
+    .rune-orbit.left { left: -78px; }
+    .rune-orbit.right { right: -78px; }
+    .leaf { animation-duration: 20s; }
   }
-  @media (max-width: 460px) {
-    main { padding: 0 16px 50px; }
-    .brand { font-size: 10px; letter-spacing: 2px; }
-    .guide-nav { padding: 11px 12px; }
-    .guide-nav nav { max-width: none; }
-    h1 { font-size: 45px; letter-spacing: 2px; }
-    .hero-note { max-width: 100%; font-size: 10px; }
-    .quick-grid, .steps, .relic-grid, .rule-grid, .tip-grid { grid-template-columns: 1fr; }
-    .panel { padding: 17px 14px; }
-    .element-table { font-size: 10px; }
-    .element-table th, .element-table td { padding: 8px 7px; }
-    .battle-layout { gap: 8px; }
-    .side-board { padding: 14px 8px; }
-    .mini-card { width: 39px; }
-    .active-card { width: 62px; }
-    .evo-card { padding-right: 13px; }
+  @media (max-width: 430px) {
+    body { font-size: 16px; }
+    .leaf { padding-inline: 17px; }
+    .cover-sub { letter-spacing: 3px; font-size: 9px; }
+    .cover-note { font-size: 15px; }
+    .toc a { grid-template-columns: 27px 1fr auto; }
+    .toc .toc-title { font-size: 10px; }
+    th, td { padding: 7px 8px; }
+  }
+  @media (hover: none) {
+    .spellbox:active, .panel:active { transform: translateY(-2px); border-color: var(--gold-hi); }
+    .relic:active { transform: translateY(-4px) rotate(-.5deg); border-color: var(--gold-hi); }
+    .sigil:active, .chapter-seal:active { transform: scale(1.07); }
+    .board-card:active { transform: translateY(-4px); }
   }
 </style>
 </head>
 <body>
-<div class="guide-shell" id="top">
-  <aside class="guide-nav">
-    <a class="brand" href="../index.html"><span class="brand-mark">✦</span> Shadowveil</a>
-    <div class="nav-label">Field manual</div>
-    <nav aria-label="Guide sections">
-      <a href="#start">Start here</a>
-      <a href="#cards">Cards</a>
-      <a href="#battle">Battle</a>
-      <a href="#elements">Elements</a>
-      <a href="#relics">Relics</a>
-      <a href="#evolution">Evolution</a>
-      <a href="#economy">Economy</a>
-      <a href="#lab">Grading lab</a>
-      <a href="#trade">Trading</a>
-    </nav>
-    <a class="back-link" href="../index.html">← Return to game</a>
-  </aside>
-
-  <main>
-    <header class="hero">
-      <div>
-        <span class="eyebrow">Shadowveil · Field Guide</span>
-        <h1>COMMAND<br>THE VEIL.</h1>
-        <p class="hero-lead">A collector's manual for binding creatures, reading the element wheel, growing rare cards, and surviving the arena.</p>
-        <span class="hero-note"><b>✦</b> Read the rules. Then make your legend.</span>
-        <div class="hero-actions"><a class="guide-cta" href="../index.html"><span class="guide-cta-icon">←</span> Back to game</a></div>
-      </div>
-      <div class="hero-visual" aria-label="Illustration of the Shadowveil relic wheel">
-        <svg viewBox="0 0 430 380" role="img">
-          <defs>
-            <radialGradient id="heroCore"><stop stop-color="#ffe8a0"/><stop offset=".35" stop-color="#a97cff"/><stop offset="1" stop-color="#171027" stop-opacity="0"/></radialGradient>
-            <linearGradient id="heroRing" x1="0" x2="1"><stop stop-color="#7fe7ff"/><stop offset=".45" stop-color="#e8c15a"/><stop offset="1" stop-color="#9b75ff"/></linearGradient>
-            <filter id="heroGlow"><feGaussianBlur stdDeviation="8"/></filter>
-          </defs>
-          <circle cx="215" cy="190" r="132" fill="none" stroke="#9b75ff" stroke-opacity=".15" stroke-width="22" filter="url(#heroGlow)"/>
-          <circle cx="215" cy="190" r="115" fill="none" stroke="url(#heroRing)" stroke-width="1.5" stroke-dasharray="3 9"/>
-          <circle cx="215" cy="190" r="83" fill="url(#heroCore)" opacity=".9"/>
-          <path d="M215 74 247 142 320 152 267 204 280 278 215 244 150 278 163 204 110 152 183 142Z" fill="#0d081a" stroke="#e8c15a" stroke-width="2"/>
-          <path d="M215 106 235 161 293 164 247 199 261 254 215 221 169 254 183 199 137 164 195 161Z" fill="none" stroke="#7fe7ff" stroke-opacity=".72"/>
-          <circle cx="215" cy="190" r="17" fill="#e8c15a"/>
-          <circle cx="215" cy="190" r="7" fill="#fff4c8"/>
-          <g fill="#f5ead0" font-family="Segoe UI, sans-serif" font-size="10" letter-spacing="2" text-anchor="middle">
-            <text x="215" y="34">SUMMON</text><text x="370" y="194">BATTLE</text><text x="215" y="358">EVOLVE</text><text x="59" y="194">COLLECT</text>
-          </g>
-          <g fill="#e8c15a" font-size="16" text-anchor="middle"><text x="215" y="58">✦</text><text x="350" y="145">◇</text><text x="80" y="145">◇</text></g>
-        </svg>
-      </div>
-    </header>
-
-    <div class="quick-grid" aria-label="Quick facts">
-      <div class="quick-card"><b>100</b><span>Starting gold</span></div>
-      <div class="quick-card"><b>3 + 1</b><span>Battle cards + reserve</span></div>
-      <div class="quick-card"><b>15</b><span>Maximum card level</span></div>
-    </div>
-
-    <section id="start">
-      <div class="section-heading"><div><span class="section-kicker">01 · First steps</span><h2>The <span>90-second</span> loop</h2></div></div>
-      <p class="section-intro">Shadowveil is a tight cycle. Open, bind, train, risk, and rebuild. Every card you keep can become a stronger, more valuable version of itself.</p>
-      <div class="steps">
-        <article class="step"><h3>Open a pack</h3><p>Packs cost 100 gold. Finds can be creatures or one-use relics. A fresh profile begins with four starter creatures.</p></article>
-        <article class="step"><h3>Read your cards</h3><p>Every owned copy has its own rolled stats, element, level, XP, record, serial, and value. Copies of one creature are not identical.</p></article>
-        <article class="step"><h3>Build the reserve</h3><p>Choose three cards for the front line and a fourth Redemption card. No loan cards are added to your battle team.</p></article>
-        <article class="step"><h3>Risk the arena</h3><p>Win to earn gold, XP, and an enemy card. Lose and pay the cost. Protect treasures with sleeves before you gamble.</p></article>
-      </div>
-    </section>
-
-    <section id="cards">
-      <div class="section-heading"><div><span class="section-kicker">02 · Your hoard</span><h2>Cards are <span>individuals</span></h2></div><span class="section-kicker">No copy is guaranteed</span></div>
-      <div class="card-facts">
-        <div class="panel">
-          <h3>What makes a card unique</h3>
-          <ul class="fact-list">
-            <li><span><b>Randomized stats.</b> Power, Cunning, and Arcana roll separately around the creature template. One copy may be a powerhouse while another is clever or arcane.</span></li>
-            <li><span><b>OVR.</b> The average of the three current stats. Level growth is added on top of the card's own base roll.</span></li>
-            <li><span><b>Element.</b> Each instance carries its own element. It controls the damage edge in the arena.</span></li>
-            <li><span><b>Provenance.</b> Serial, first edition status, grade, wins, losses, streak, XP, and value stay with the instance.</span></li>
-          </ul>
-        </div>
-        <div class="panel">
-          <h3>Read the face</h3>
-          <p>The three stat bars are the card's current Power, Cunning, and Arcana. OVR is the quick strength read; the individual bars tell you how that strength is shaped.</p>
-          <p>Tap an owned card to open its full preview. Tap an enemy card during battle to see its stats, evolution, weak element, strong element, and live matchup numbers.</p>
-          <div class="callout"><b>Collector rule:</b> Do not judge a creature name alone. Compare the actual card in your hand.</div>
-        </div>
-      </div>
-      <div class="panel" style="margin-top:14px">
-        <h3>Rarity is instance-based</h3>
-        <p>Any creature can roll any rarity. The tier is stored on the individual card, not locked to the creature template. Every copy also receives its own rarity type code.</p>
-        <div class="rarity-ladder">
-          <span class="rarity-chip" style="--rarity:#b0723a">Common · BRZ</span>
-          <span class="rarity-chip" style="--rarity:#c9d3dd">Uncommon · SLV</span>
-          <span class="rarity-chip" style="--rarity:#e8c15a">Rare · GLD</span>
-          <span class="rarity-chip" style="--rarity:#7fe7ff">Mythic · DIA</span>
-          <span class="rarity-chip" style="--rarity:#ff7de8">Prismatic · PRS</span>
-          <span class="rarity-chip" style="--rarity:#a78bfa">Astral · AST</span>
-          <span class="rarity-chip" style="--rarity:#8b7cff">Void · VOD</span>
-          <span class="rarity-chip" style="--rarity:#fff0a6">Celestial · CEL</span>
-        </div>
-      </div>
-    </section>
-
-    <section id="battle">
-      <div class="section-heading"><div><span class="section-kicker">03 · The arena</span><h2>Four cards. <span>One chance.</span></h2></div></div>
-      <p class="section-intro">The enemy builds a response team from the global roster. The battle board shows both decks, the active cards, live element effects, HP, relic statuses, and the next action bar.</p>
-      <div class="panel">
-        <div class="battle-layout" aria-label="Battle board illustration">
-          <div class="side-board"><h3>Your Coven</h3><div class="mini-cards"><i class="mini-card"></i><i class="mini-card"></i><i class="mini-card"></i><i class="mini-card reserve"></i></div><div class="active-card"></div></div>
-          <div class="board-vs"><strong>VS</strong><span>50/50 opening flip</span></div>
-          <div class="side-board enemy"><h3>Enemy Coven</h3><div class="active-card enemy"></div><div class="mini-cards" style="margin-top:13px"><i class="mini-card"></i><i class="mini-card"></i><i class="mini-card"></i><i class="mini-card reserve"></i></div></div>
-        </div>
-      </div>
-      <div class="rule-grid">
-        <div class="rule"><h3>Opening gamble</h3><p>A true 50/50 coin flip chooses the first side. The result is shown, then tap the screen to begin the match.</p></div>
-        <div class="rule gold"><h3>Choose a move</h3><p>Attack, switch to a live card, or spend one relic. The bot gets the same kind of turn after your action.</p></div>
-        <div class="rule"><h3>Redemption reserve</h3><p>Your fourth card stays face-down. It reveals only after your first three cards are gone, then becomes the final fighter.</p></div>
-        <div class="rule gold"><h3>Preview everything</h3><p>Tap your own or enemy cards during the fight for stats and element matchup details without leaving the match.</p></div>
-      </div>
-      <div class="panel">
-        <h3>Redemption scoring</h3>
-        <p>If you win without revealing your Redemption card, all four player cards receive one win and none receive a loss for that match.</p>
-        <p>If Redemption is used and you still win, it receives a bonus equal to half of the match's player wins, rounded up. A used Redemption card is still a real card: its normal battle events are recorded too.</p>
-      </div>
-    </section>
-
-    <section id="elements">
-      <div class="section-heading"><div><span class="section-kicker">04 · Element wheel</span><h2>Find the <span>edge</span></h2></div></div>
-      <p class="section-intro">The listed matchups are the direct rules. Different elements never produce a neutral matchup: unlisted pairs resolve consistently along the wheel order. Same-element cards are even.</p>
-      <div class="element-layout">
-        <div class="element-wheel">
-          <svg viewBox="0 0 320 320" role="img" aria-label="Six element wheel">
-            <defs><linearGradient id="wheel" x1="0" x2="1"><stop stop-color="#ff8e5c"/><stop offset=".3" stop-color="#7fe7ff"/><stop offset=".62" stop-color="#9b75ff"/><stop offset="1" stop-color="#e8c15a"/></linearGradient></defs>
-            <circle cx="160" cy="160" r="120" fill="none" stroke="url(#wheel)" stroke-width="2" stroke-dasharray="4 6"/>
-            <circle cx="160" cy="160" r="72" fill="#120b21" stroke="#e8c15a" stroke-opacity=".45"/>
-            <text x="160" y="155" fill="#f5ead0" text-anchor="middle" font-size="12" letter-spacing="2">ELEMENT</text><text x="160" y="173" fill="#e8c15a" text-anchor="middle" font-size="10" letter-spacing="2">EDGE</text>
-            <g fill="#f5ead0" text-anchor="middle" font-size="20"><text x="160" y="25">🔥</text><text x="277" y="91">🌿</text><text x="277" y="226">⚡</text><text x="160" y="304">💧</text><text x="43" y="226">❄️</text><text x="43" y="91">🌍</text></g>
-            <g stroke="#e8c15a" stroke-opacity=".45" fill="none"><path d="M160 47v43M250 100l-36 22M250 220l-36-22M160 273v-43M70 220l36-22M70 100l36 22"/></g>
-          </svg>
-        </div>
-        <div>
-          <table class="element-table">
-            <thead><tr><th>Element</th><th>Strong against</th><th>Weak against</th></tr></thead>
-            <tbody>
-              <tr><td>🔥 Fire</td><td>🌿 Nature</td><td>🌍 Earth</td></tr>
-              <tr><td>🌿 Nature</td><td>⚡ Lightning</td><td>🔥 Fire</td></tr>
-              <tr><td>⚡ Lightning</td><td>💧 Water</td><td>🌿 Nature</td></tr>
-              <tr><td>💧 Water</td><td>❄️ Ice</td><td>⚡ Lightning</td></tr>
-              <tr><td>❄️ Ice</td><td>🌍 Earth</td><td>💧 Water</td></tr>
-              <tr><td>🌍 Earth</td><td>🔥 Fire</td><td>❄️ Ice</td></tr>
-            </tbody>
-          </table>
-          <div class="callout"><b>Damage rule:</b> an advantage is 1.25× damage and a pressure matchup is 0.8× damage. The battle board converts that edge into a simple visible damage swing beside the hit number.</div>
-        </div>
-      </div>
-    </section>
-
-    <section id="relics">
-      <div class="section-heading"><div><span class="section-kicker">05 · One-use power</span><h2>Relics change <span>turns</span></h2></div><span class="section-kicker">Max 10 uses per battle</span></div>
-      <p class="section-intro">Relics are consumed when played. The enemy can receive a loadout too, and its AI reads your element edge, boosted hit, shields, stuns, and health before choosing a response.</p>
-      <div class="relic-grid">
-        <article class="relic"><span class="relic-icon">🩸</span><h3>Bloodstone Idol</h3><p>Your next attack deals 2× damage.</p><span class="relic-tag">Common · Charge</span></article>
-        <article class="relic"><span class="relic-icon">🌿</span><h3>Verdant Relic</h3><p>Fully restores the active card's health.</p><span class="relic-tag">Common · Recovery</span></article>
-        <article class="relic"><span class="relic-icon">🛡️</span><h3>Aegis Shard</h3><p>Deflects the enemy's next attack.</p><span class="relic-tag">Common · Defense</span></article>
-        <article class="relic rare"><span class="relic-icon">💀</span><h3>Wraith Fang</h3><p>Deals heavy drain damage and heals its user for half.</p><span class="relic-tag">Rare · Drain</span></article>
-        <article class="relic rare"><span class="relic-icon">❄️</span><h3>Frost Sigil</h3><p>The enemy skips its next turn.</p><span class="relic-tag">Rare · Freeze</span></article>
-        <article class="relic rare"><span class="relic-icon">🔥</span><h3>Soulbrand Ember</h3><p>Your next attack deals 3× damage.</p><span class="relic-tag">Rare · Charge</span></article>
-        <article class="relic rare"><span class="relic-icon">🔥</span><h3>Phoenix Relic</h3><p>Revives one fallen front-line card at half health.</p><span class="relic-tag">Rare · Revive</span></article>
-        <article class="relic"><span class="relic-icon">✦</span><h3>Counter timing</h3><p>Shielding or freezing an opponent cancels its pending 2× or 3× charge. The relic is still consumed.</p><span class="relic-tag">Read the board</span></article>
-      </div>
-      <div class="callout"><b>Stack rule:</b> you can hold up to 3 copies of one relic. The battle cap limits total uses, and a relic cannot be used after the match is over.</div>
-    </section>
-
-    <section id="evolution">
-      <div class="section-heading"><div><span class="section-kicker">06 · The long climb</span><h2>Grow into a <span>god tier</span></h2></div><span class="section-kicker">Level cap · 15</span></div>
-      <p class="section-intro">Evolution is a visual grind layer over the existing XP loop. A card's random base identity stays intact while levels add controlled growth and unlock a new visual phase.</p>
-      <div class="evolution-track">
-        <article class="evo-card"><div class="evo-orb">Ⅰ</div><h3>Base Evolution</h3><span class="range">Lv 1–4</span><p>The card's original form. Its rolled stats, element, rarity, and art establish the starting identity.</p></article>
-        <article class="evo-card second"><div class="evo-orb">Ⅱ</div><h3>Second Evolution</h3><span class="range">Lv 5–9</span><p>A new frame and color treatment appear. The same card keeps its identity while level growth raises its current stats.</p></article>
-        <article class="evo-card god"><div class="evo-orb">Ⅲ</div><h3>God Tier Evolution</h3><span class="range">Lv 10–15</span><p>A special skin, aura, and capped finish mark the card as a long-term champion. Level 15 is the ceiling.</p></article>
-      </div>
-      <div class="god-tier-note"><b>How to add your art:</b> edit <code>creatures/evolutions.json</code>. Each creature has <code>base</code>, <code>second</code>, and <code>god</code> image fields. Leave a field empty to fall back to its normal image. The file accepts a bare filename or a full relative path.</div>
-      <div class="panel" style="margin-top:14px">
-        <h3>XP and balance</h3>
-        <p>A card earns 100 XP for a win and loses 50 XP for a loss. Each level adds +4 to all three current stats. Wins grow a card; losses can pull it back down. At level 15, XP cannot push it higher.</p>
-      </div>
-    </section>
-
-    <section id="sleeves">
-      <div class="section-heading"><div><span class="section-kicker">07 · Protect the rarest</span><h2>Use a <span>sleeve</span></h2></div></div>
-      <div class="panel">
-        <p>Open an owned card preview and choose <b>Sleeve Card</b>. The card gains a visible transparent blue sleeve, shine, and <b>PROTECTED</b> stamp.</p>
-        <div class="rule-grid">
-          <div class="rule"><h3>Locked from battle</h3><p>A sleeved card cannot be selected as one of the three battle cards or as the Redemption card.</p></div>
-          <div class="rule gold"><h3>Locked from selling</h3><p>Direct sale, bulk sale, and overflow trade paths refuse a sleeved card until you unsleeve it.</p></div>
-          <div class="rule"><h3>Protected crown jewel</h3><p>The defeat reward cannot take a sleeved card as your crown jewel.</p></div>
-          <div class="rule gold"><h3>Undo anytime</h3><p>Unsleeve it from the same preview when you decide it is ready to risk again.</p></div>
-        </div>
-      </div>
-    </section>
-
-    <section id="economy">
-      <div class="section-heading"><div><span class="section-kicker">08 · Risk and reward</span><h2>Gold has <span>teeth</span></h2></div></div>
-      <div class="economy-grid">
-        <div class="panel">
-          <h3>Gold rules</h3>
-          <div class="money-list">
-            <div class="money-row"><span>New or reset profile</span><b>100 gold</b></div>
-            <div class="money-row"><span>Open one pack</span><b>−100 gold</b></div>
-            <div class="money-row"><span>Full-team victory</span><b>+35 gold</b></div>
-            <div class="money-row"><span>Victory per remaining card</span><b>+10 gold</b></div>
-            <div class="money-row"><span>Defeat per card knocked out</span><b>−35 gold</b></div>
-            <div class="money-row"><span>Grading submission</span><b>200 gold</b></div>
-          </div>
-        </div>
-        <div class="panel danger-box">
-          <h3>When the legend ends</h3>
-          <p>Gold at zero is not automatically game over. Your cards are runway: their total value counts toward the next 100-gold pack and a fresh four-card battle team.</p>
-          <p>If you have fewer than four usable cards, no card is still waiting in the lab, and your gold plus total hoard value cannot reach the next pack, the profile is finished.</p>
-          <p>The game shows <b>Your Legend Ends Here</b>, then resets the profile to a fresh starter hoard.</p>
-        </div>
-      </div>
-    </section>
-
-    <section id="lab">
-      <div class="section-heading"><div><span class="section-kicker">09 · Condition matters</span><h2>The <span>Grading Lab</span></h2></div></div>
-      <div class="panel">
-        <p>Every card hides a condition grade from 1 to 10. Send a card to the lab for 200 gold, wait 3 minutes, and reveal its condition. Three lab slots can run at once.</p>
-        <div class="rule-grid">
-          <div class="rule"><h3>Value swing</h3><p>High grades multiply card value dramatically. A GEM MT 10 is a collector event; a Poor 1 is a hard hit.</p></div>
-          <div class="rule gold"><h3>Lab lock</h3><p>A card in grading cannot be sold or selected for battle. It returns when the timer finishes.</p></div>
-        </div>
-      </div>
-    </section>
-
-    <section id="trade">
-      <div class="section-heading"><div><span class="section-kicker">10 · The social loop</span><h2>Trade with <span>intent</span></h2></div></div>
-      <div class="panel">
-        <p>Start a trade, share the room code, choose one card each, review both sides, and confirm. The exchange is two-sided: both collectors must confirm before anything moves.</p>
-        <div class="rule-grid">
-          <div class="rule"><h3>Compare instances</h3><p>Look at stats, level, evolution, grade, serial, and battle record. A copy's name is only the beginning.</p></div>
-          <div class="rule gold"><h3>Protect before risk</h3><p>Sleeve cards you want to keep out of battle, sale, and crown-jewel loss. Unsleeve only when you are ready.</p></div>
-        </div>
-      </div>
-    </section>
-
-    <section id="tips">
-      <div class="section-heading"><div><span class="section-kicker">11 · Closing advice</span><h2>Play the <span>long game</span></h2></div></div>
-      <div class="tip-grid">
-        <div class="tip"><b>Read the edge</b><span>Do not attack on autopilot. The active matchup tells you which side gets the damage advantage.</span></div>
-        <div class="tip"><b>Save counters</b><span>Shield and freeze are strongest when they erase a charged 2× or 3× hit.</span></div>
-        <div class="tip"><b>Train specialists</b><span>Randomized stats mean one copy may be your best Power card while another is your Arcana card.</span></div>
-        <div class="tip"><b>Protect legends</b><span>Sleeve valuable cards before risking a match or leaving them exposed as the crown jewel.</span></div>
-        <div class="tip"><b>Respect reserve</b><span>The fourth card is hidden, but the match is not safe until the enemy's reserve is cleared too.</span></div>
-        <div class="tip"><b>Evolution is the grind</b><span>Level 5 and level 10 are visual milestones. Level 15 is the finish line.</span></div>
-      </div>
-    </section>
-
-    <footer>Shadowveil Field Guide · Summon · Trade · Dominate</footer>
-  </main>
+<div class="arcane-aura left" aria-hidden="true"></div>
+<div class="arcane-aura right" aria-hidden="true"></div>
+<div class="aether-glow" aria-hidden="true"></div>
+<div class="rune-orbit left" aria-hidden="true"><span>&#10022;</span></div>
+<div class="rune-orbit right" aria-hidden="true"><span>&#9670;</span></div>
+<div class="motes" aria-hidden="true">
+  <i style="--x:8%;--y:22%;--s:3px;--c:#ffe6a0;--d:9s;--delay:0s;--dx:12px"></i>
+  <i style="--x:17%;--y:68%;--s:2px;--c:#a47bff;--d:12s;--delay:2s;--dx:-18px"></i>
+  <i style="--x:29%;--y:38%;--s:2px;--c:#82dcff;--d:11s;--delay:5s;--dx:15px"></i>
+  <i style="--x:41%;--y:82%;--s:3px;--c:#d9b85b;--d:14s;--delay:1s;--dx:-10px"></i>
+  <i style="--x:56%;--y:19%;--s:2px;--c:#a47bff;--d:10s;--delay:4s;--dx:20px"></i>
+  <i style="--x:68%;--y:57%;--s:3px;--c:#ffe6a0;--d:13s;--delay:3s;--dx:-14px"></i>
+  <i style="--x:79%;--y:31%;--s:2px;--c:#82dcff;--d:9s;--delay:6s;--dx:11px"></i>
+  <i style="--x:91%;--y:76%;--s:3px;--c:#a47bff;--d:12s;--delay:0s;--dx:-17px"></i>
 </div>
+
+<button class="codex-toggle" id="codexToggle" type="button" aria-label="Open table of contents" aria-expanded="false">&#9776;</button>
+<div class="codex-scrim" id="codexScrim"></div>
+<aside class="codex-drawer" id="codexDrawer" aria-label="Table of contents">
+  <button class="codex-close" id="codexClose" type="button" aria-label="Close table of contents">&times;</button>
+  <div class="codex-title">Shadowveil<br>Arcane Index</div>
+  <nav class="codex-nav">
+    <a href="#contents">Table of Contents</a>
+    <div class="codex-group">The Binding</div>
+    <a href="#ch1">I. The First Binding</a>
+    <a href="#ch2">II. Pack Anatomy</a>
+    <a href="#ch3">III. Card Anatomy</a>
+    <div class="codex-group">The Arena</div>
+    <a href="#ch4">IV. Battle Protocol</a>
+    <a href="#ch5">V. Element Wheel</a>
+    <a href="#ch6">VI. Relic Codex</a>
+    <div class="codex-group">The Ascent</div>
+    <a href="#ch7">VII. Evolution &amp; XP</a>
+    <a href="#ch8">VIII. Protection</a>
+    <a href="#ch9">IX. Grading Lab</a>
+    <div class="codex-group">The Ledger</div>
+    <a href="#ch10">X. Economy &amp; Reset</a>
+    <a href="#ch11">XI. Trade Circles</a>
+    <a href="#ch12">XII. Hall of Fame</a>
+    <div class="codex-group">Appendix</div>
+    <a href="#appendix">Quick Reference</a>
+  </nav>
+  <a class="codex-return" href="../index.html">&#8592; Return to Game</a>
+</aside>
+
+<main class="book">
+  <section class="leaf cover" id="cover">
+    <div class="cover-content">
+      <div class="cover-kicker">The forbidden field manual</div>
+      <div class="sigil" aria-hidden="true"><span>&#10022;</span></div>
+      <h1>Shadowveil</h1>
+      <div class="cover-sub">The Arcane Grimoire</div>
+      <div class="magic-rule"><span>&#10022;</span></div>
+      <p class="cover-note">A complete mechanical reference for summoning, collecting, battling, evolving, and surviving the veil.</p>
+      <div class="cover-links">
+        <a class="cover-link" href="#contents">Open the Grimoire <span>&rarr;</span></a>
+        <a class="cover-link secondary" href="../index.html">Return to Game</a>
+      </div>
+      <div class="cover-meta">Version 0.2 &middot; All current rules</div>
+    </div>
+  </section>
+
+  <section class="leaf" id="contents">
+    <header class="contents-head">
+      <div class="section-kicker">The illuminated index</div>
+      <h2 class="section-title">Table of Contents</h2>
+      <p class="section-subtitle">Every rule, rite, and risk recorded within</p>
+      <div class="magic-rule"><span>&#10022;</span></div>
+    </header>
+    <p class="contents-intro">Read the binding chapters first if you are new. The arena chapters explain every combat decision. The ascent and ledger chapters explain how a card gains value and how a collection survives.</p>
+    <nav class="toc" aria-label="Table of contents">
+      <a href="#ch1"><span class="toc-num">I</span><span class="toc-title">The First Binding</span><span class="toc-page">01</span></a>
+      <a href="#ch2"><span class="toc-num">II</span><span class="toc-title">Pack Anatomy</span><span class="toc-page">02</span></a>
+      <a href="#ch3"><span class="toc-num">III</span><span class="toc-title">Card Anatomy</span><span class="toc-page">03</span></a>
+      <a href="#ch4"><span class="toc-num">IV</span><span class="toc-title">Battle Protocol</span><span class="toc-page">04</span></a>
+      <a href="#ch5"><span class="toc-num">V</span><span class="toc-title">Element Wheel</span><span class="toc-page">05</span></a>
+      <a href="#ch6"><span class="toc-num">VI</span><span class="toc-title">Relic Codex</span><span class="toc-page">06</span></a>
+      <a href="#ch7"><span class="toc-num">VII</span><span class="toc-title">Evolution &amp; XP</span><span class="toc-page">07</span></a>
+      <a href="#ch8"><span class="toc-num">VIII</span><span class="toc-title">Protection</span><span class="toc-page">08</span></a>
+      <a href="#ch9"><span class="toc-num">IX</span><span class="toc-title">Grading Lab</span><span class="toc-page">09</span></a>
+      <a href="#ch10"><span class="toc-num">X</span><span class="toc-title">Economy &amp; Reset</span><span class="toc-page">10</span></a>
+      <a href="#ch11"><span class="toc-num">XI</span><span class="toc-title">Trade Circles</span><span class="toc-page">11</span></a>
+      <a href="#ch12"><span class="toc-num">XII</span><span class="toc-title">Hall of Fame</span><span class="toc-page">12</span></a>
+      <a href="#appendix"><span class="toc-num">A</span><span class="toc-title">Quick Reference</span><span class="toc-page">13</span></a>
+    </nav>
+    <div class="page-number">Contents</div>
+  </section>
+
+  <section class="leaf chapter" id="ch1">
+    <header class="chapter-head">
+      <div class="chapter-seal">I</div>
+      <div class="chapter-number">Chapter I &middot; The Binding</div>
+      <h2 class="chapter-title">The First Binding</h2>
+      <p class="chapter-subtitle">What a new collector receives and what to do first</p>
+      <div class="magic-rule"><span>&#10022;</span></div>
+    </header>
+    <p class="drop">A fresh profile begins with <b>100 coins</b> and four level-1 starter creatures. The starter instances are real cards: they receive their own rolled rarity, element, serial, and stats. They are not temporary loan cards.</p>
+    <div class="table-scroll"><table>
+      <thead><tr><th>Starter</th><th>Realm</th><th>Base Power</th><th>Base Cunning</th><th>Base Arcana</th></tr></thead>
+      <tbody>
+        <tr><td>Frost, Hoarfrost Golem</td><td>Frost Reach</td><td class="num">18</td><td class="num">88</td><td class="num">66</td></tr>
+        <tr><td>Bahar, Jade Oracle</td><td>Jade Delta</td><td class="num">82</td><td class="num">74</td><td class="num">72</td></tr>
+        <tr><td>Aria, Moonlit Sylph</td><td>Mist Vale</td><td class="num">89</td><td class="num">20</td><td class="num">80</td></tr>
+        <tr><td>Wren, Twilight Sprite</td><td>Duskwold</td><td class="num">80</td><td class="num">5</td><td class="num">83</td></tr>
+      </tbody>
+    </table></div>
+    <h2>The Core Loop</h2>
+    <div class="spellbox"><h4>Summon &rarr; Bind &rarr; Risk &rarr; Refine</h4><p>Spend coins on packs. Inspect the individual cards. Select three front-line cards and one Redemption card. Fight for coins, XP, and a claimed enemy card. Sell, sleeve, grade, favorite, or trade the cards that matter.</p></div>
+    <ul class="rune-list">
+      <li><span><b>Summon:</b> packs cost 100 coins and contain five finds.</span></li>
+      <li><span><b>Bind:</b> only creature instances occupy the 15-card hoard; relics live in their own stacks.</span></li>
+      <li><span><b>Risk:</b> a defeat costs coins and removes the current Crown Jewel.</span></li>
+      <li><span><b>Refine:</b> XP, evolution, grading, serials, and battle history change the value of an instance.</span></li>
+    </ul>
+    <div class="spellbox violet"><h4>Profile and save</h4><p>Profiles use username and password sign-in. Firebase sync is used when available, with local storage as the fallback. Your collection, relics, pending overflow, grading timers, and battle records belong to the active profile.</p></div>
+    <div class="page-number">01</div>
+  </section>
+
+  <section class="leaf chapter" id="ch2">
+    <header class="chapter-head">
+      <div class="chapter-seal">II</div>
+      <div class="chapter-number">Chapter II &middot; The Binding</div>
+      <h2 class="chapter-title">Pack Anatomy</h2>
+      <p class="chapter-subtitle">The five slots and the laws of overflow</p>
+      <div class="magic-rule"><span>&#10022;</span></div>
+    </header>
+    <p class="drop">A pack is paid for before it opens. Five independent slots are then resolved. A slot has a <b>35% relic roll</b>; otherwise it creates a creature instance. If every slot misses relic, the game replaces one random result so that every pack contains at least one relic.</p>
+    <div class="table-scroll"><table>
+      <thead><tr><th>Pack rule</th><th>Current value</th><th>What it means</th></tr></thead>
+      <tbody>
+        <tr><td>Cost</td><td class="num">100 coins</td><td>Charged before the pack animation</td></tr>
+        <tr><td>Finds</td><td class="num">5</td><td>Five total results per pack</td></tr>
+        <tr><td>Relic roll</td><td class="num">35% per slot</td><td>Each slot rolls separately</td></tr>
+        <tr><td>Relic guarantee</td><td class="num">1 minimum</td><td>A failed pack is corrected to contain one</td></tr>
+        <tr><td>Creature roster</td><td class="num">12 templates</td><td>Creature pulls choose from the global roster</td></tr>
+        <tr><td>Relic selection</td><td class="num">7 types</td><td>Relic pulls choose from the relic codex</td></tr>
+      </tbody>
+    </table></div>
+    <h2>Overflow</h2>
+    <p>Only creature pulls use the <b>15-instance creature hoard</b>. Relics do not consume those slots. When a creature pull arrives while the hoard is full, it enters the overflow queue.</p>
+    <div class="grid-2">
+      <div class="spellbox"><h4>Creature overflow</h4><p>Sell the pull for its calculated value, release it, or exchange it for an owned creature to free a slot. Sleeved or grading-locked cards cannot be used as the replacement.</p></div>
+      <div class="spellbox violet"><h4>Relic overflow</h4><p>Relics stack to three copies per type. A fourth copy does not enter the creature hoard; it converts immediately to coins at that relic's listed price.</p></div>
+    </div>
+    <p>Overflow is a decision point, not a second collection page. Inspect serial, rarity, stats, and element before you sacrifice a card for space.</p>
+    <div class="page-number">02</div>
+  </section>
+
+  <section class="leaf chapter" id="ch3">
+    <header class="chapter-head">
+      <div class="chapter-seal">III</div>
+      <div class="chapter-number">Chapter III &middot; The Binding</div>
+      <h2 class="chapter-title">Card Anatomy</h2>
+      <p class="chapter-subtitle">How to read an instance, and what makes it valuable</p>
+      <div class="magic-rule"><span>&#10022;</span></div>
+    </header>
+    <p class="drop">The creature name is only the outer skin. The instance beneath it carries three rolled stats, a level, XP, element, rarity, grade state, serial, first-edition flag, record, and value. That is why two copies of the same creature can have completely different jobs and prices.</p>
+    <div class="grid-2">
+      <div class="panel"><h3>Visible combat identity</h3><ul class="rune-list"><li><span><b>Power:</b> physical strength stat.</span></li><li><span><b>Cunning:</b> tactical stat.</span></li><li><span><b>Arcana:</b> magical stat.</span></li><li><span><b>OVR:</b> the rounded average of the three effective stats.</span></li><li><span><b>Element:</b> randomized per instance and used by the wheel.</span></li></ul></div>
+      <div class="panel"><h3>Collector identity</h3><ul class="rune-list"><li><span><b>Rarity:</b> rolled per instance, not fixed to a creature.</span></li><li><span><b>Serial:</b> #0001 through #9999 within the creature/rarity print pool.</span></li><li><span><b>Grade:</b> hidden until the Grading Lab reveals it.</span></li><li><span><b>Record:</b> wins, losses, streak, and XP affect the instance.</span></li><li><span><b>Value:</b> drives sales, overflow, Crown Jewel, and Hall of Fame rank.</span></li></ul></div>
+    </div>
+    <h2>Stat Rolls and OVR</h2>
+    <p>At creation, each stat is rolled plus or minus ten around its creature template and clamped to 1&ndash;100. Each level then adds <b>+4 to all three effective stats</b>; level growth can push a stat above 100.</p>
+    <div class="spellbox"><h4>Stat formula</h4><p><code>rolled stat = clamp(round(base stat + random(-10, +10)), 1, 100)</code><br><code>effective stat = rolled stat + (level - 1) &times; 4</code><br><code>OVR = round((Power + Cunning + Arcana) / 3)</code></p></div>
+    <h2>The Twelve Creature Templates</h2>
+    <div class="table-scroll"><table>
+      <thead><tr><th>Creature</th><th>Power</th><th>Cunning</th><th>Arcana</th><th>Realm</th></tr></thead>
+      <tbody>
+        <tr><td>Vorlag, the Ember Wyrm</td><td class="num">94</td><td class="num">12</td><td class="num">82</td><td>Ember Court</td></tr>
+        <tr><td>Mordrax, the Void Serpent</td><td class="num">15</td><td class="num">95</td><td class="num">70</td><td>Shadowmere</td></tr>
+        <tr><td>Kaelen, Storm Warden</td><td class="num">88</td><td class="num">62</td><td class="num">85</td><td>Stormhold</td></tr>
+        <tr><td>Zephyra, Wind Spirit</td><td class="num">91</td><td class="num">10</td><td class="num">78</td><td>Stormhold</td></tr>
+        <tr><td>Nyx, the Shadow Stalker</td><td class="num">32</td><td class="num">93</td><td class="num">74</td><td>Shadowmere</td></tr>
+        <tr><td>Thorne, Grave Reaper</td><td class="num">85</td><td class="num">8</td><td class="num">90</td><td>Duskwold</td></tr>
+        <tr><td>Aria, Moonlit Sylph</td><td class="num">89</td><td class="num">20</td><td class="num">80</td><td>Mist Vale</td></tr>
+        <tr><td>Dravak, Sand Devil</td><td class="num">48</td><td class="num">90</td><td class="num">76</td><td>Crimson Steppe</td></tr>
+        <tr><td>Ilyra, Storm Harpy</td><td class="num">86</td><td class="num">55</td><td class="num">79</td><td>Stormhold</td></tr>
+        <tr><td>Bahar, Jade Oracle</td><td class="num">82</td><td class="num">74</td><td class="num">72</td><td>Jade Delta</td></tr>
+        <tr><td>Frost, Hoarfrost Golem</td><td class="num">18</td><td class="num">88</td><td class="num">66</td><td>Frost Reach</td></tr>
+        <tr><td>Wren, Twilight Sprite</td><td class="num">80</td><td class="num">5</td><td class="num">83</td><td>Duskwold</td></tr>
+      </tbody>
+    </table></div>
+    <h2>Rarity and Print Odds</h2>
+    <div class="table-scroll"><table>
+      <thead><tr><th>Tier</th><th>Display name</th><th>Weight</th><th>Base value</th></tr></thead>
+      <tbody>
+        <tr><td>Bronze</td><td>Common</td><td class="num">38%</td><td class="num">6</td></tr>
+        <tr><td>Silver</td><td>Uncommon</td><td class="num">28%</td><td class="num">15</td></tr>
+        <tr><td>Gold</td><td>Rare</td><td class="num">18%</td><td class="num">41</td></tr>
+        <tr><td>Diamond</td><td>Mythic</td><td class="num">9%</td><td class="num">77</td></tr>
+        <tr><td>Prismatic</td><td>Prismatic</td><td class="num">4%</td><td class="num">120</td></tr>
+        <tr><td>Astral</td><td>Astral</td><td class="num">2%</td><td class="num">175</td></tr>
+        <tr><td>Void</td><td>Void</td><td class="num">0.8%</td><td class="num">240</td></tr>
+        <tr><td>Celestial</td><td>Celestial</td><td class="num">0.2%</td><td class="num">340</td></tr>
+      </tbody>
+    </table></div>
+    <div class="rarity-row"><span class="rarity" style="--r:#b0723a">Bronze</span><span class="rarity" style="--r:#c9d3dd">Silver</span><span class="rarity" style="--r:#e8c15a">Gold</span><span class="rarity" style="--r:#7fe7ff">Diamond</span><span class="rarity" style="--r:#ff7de8">Prismatic</span><span class="rarity" style="--r:#a78bfa">Astral</span><span class="rarity" style="--r:#8b7cff">Void</span><span class="rarity" style="--r:#fff0a6">Celestial</span></div>
+    <div class="page-number">03</div>
+  </section>
+
+  <section class="leaf chapter" id="ch4">
+    <header class="chapter-head">
+      <div class="chapter-seal">IV</div>
+      <div class="chapter-number">Chapter IV &middot; The Arena</div>
+      <h2 class="chapter-title">Battle Protocol</h2>
+      <p class="chapter-subtitle">Four cards enter the circle; one coven remains</p>
+      <div class="magic-rule"><span>&#10022;</span></div>
+    </header>
+    <p class="drop">A battle uses <b>three front-line cards and one hidden Redemption card</b>. The enemy has the same four-card structure, but its cards are virtual combatants and are not added to your collection. A 50/50 opening roll decides who takes the first turn.</p>
+    <div class="battle-board">
+      <div class="board-label">Your deck &middot; 3 active + 1 hidden Redemption</div>
+      <div class="board-row"><span class="board-card"></span><span class="board-card"></span><span class="board-card"></span><span class="board-card hidden"></span></div>
+      <div class="board-vs">VS</div>
+      <div class="board-row"><span class="board-card hidden"></span><span class="board-card"></span><span class="board-card"></span><span class="board-card"></span></div>
+      <div class="board-label">Enemy deck &middot; 3 active + 1 hidden reserve</div>
+    </div>
+    <h2>The In-Game Board</h2>
+    <div class="grid-2">
+      <div class="spellbox"><h4>Upper HUD</h4><p>The score bar tracks Your Damage against Enemy Damage. The round ticker changes from R1&ndash;R4 to KO1&ndash;KO4 as cards fall.</p></div>
+      <div class="spellbox violet"><h4>Central Focus</h4><p>Your active card and the enemy active card face each other with HP, level, stats, element, and live matchup numbers visible.</p></div>
+      <div class="spellbox"><h4>Center Core</h4><p>YOUR TURN, ENEMY TURN, or CHOOSE REPLACEMENT appears beside VS and the exact element effect.</p></div>
+      <div class="spellbox"><h4>Relic Rows</h4><p>Your relics sit above your deck. Enemy relics sit below theirs. A relic fires immediately, is consumed, and ends your turn.</p></div>
+    </div>
+    <h2>Turn Actions and Damage</h2>
+    <div class="table-scroll"><table>
+      <thead><tr><th>Action</th><th>Result</th></tr></thead>
+      <tbody><tr><td>Attack</td><td>Strike the enemy active card.</td></tr><tr><td>Switch</td><td>Move to another live front-line card; the turn ends without an attack.</td></tr><tr><td>Relic</td><td>Use one relic from your row; its effect resolves and the turn ends.</td></tr></tbody>
+    </table></div>
+    <div class="spellbox"><h4>Normal attack formula</h4><p><code>damage = OVR &times; random(0.85 to 1.15) &times; element multiplier &times; pending charge</code><br>Damage is capped at the defender's remaining HP. A shield reduces the attack to zero and clears the attacker's pending 2&times; or 3&times; charge.</p></div>
+    <p>Active HP is calculated as <code>round(60 + OVR &times; 1.8)</code>. When a card is knocked out, the enemy chooses its replacement. Once all three front-line cards are down, Redemption is revealed and activated. The first side to eliminate all four cards wins.</p>
+    <h2>Redemption, Rewards, and the Crown Jewel</h2>
+    <ul class="rune-list">
+      <li><span><b>Clean victory:</b> if Redemption was not used, all four player cards receive one win and +100 XP.</span></li>
+      <li><span><b>Combat-record match:</b> battles involving losses or a used Redemption card record actual combat wins/losses and XP events. A Redemption victory adds bonus wins equal to half the player's combat wins, rounded up.</span></li>
+      <li><span><b>Victory coins:</b> +35 when Redemption was not used; otherwise +10 for every player combat entry with no recorded loss.</span></li>
+      <li><span><b>Defeat coins:</b> -35 per KO event, capped at the coins currently held.</span></li>
+      <li><span><b>Claim:</b> a victory claims the enemy virtual card with the highest OVR, including its level, stats, rarity, element, and serial. A full hoard sends it to overflow.</span></li>
+      <li><span><b>Crown Jewel:</b> on defeat, the enemy removes the most valuable unprotected card in your collection. Sleeved and grading-locked cards are excluded.</span></li>
+    </ul>
+    <div class="page-number">04</div>
+  </section>
+
+  <section class="leaf chapter" id="ch5">
+    <header class="chapter-head">
+      <div class="chapter-seal">V</div>
+      <div class="chapter-number">Chapter V &middot; The Arena</div>
+      <h2 class="chapter-title">Element Wheel</h2>
+      <p class="chapter-subtitle">Six forces, two multipliers, no neutral guesswork</p>
+      <div class="magic-rule"><span>&#10022;</span></div>
+    </header>
+    <p class="drop">Every card carries one randomized element. Same-element attacks are even. An advantage deals <b>1.25&times;</b> damage; a disadvantage deals <b>0.8&times;</b>. The board prints the exact effect before you commit to an attack.</p>
+    <div class="table-scroll"><table>
+      <thead><tr><th>Attacker element</th><th>Strong against</th><th>Weak against</th></tr></thead>
+      <tbody>
+        <tr><td>Fire</td><td class="green">Nature</td><td class="red">Earth</td></tr>
+        <tr><td>Nature</td><td class="green">Lightning</td><td class="red">Fire</td></tr>
+        <tr><td>Lightning</td><td class="green">Water</td><td class="red">Nature</td></tr>
+        <tr><td>Water</td><td class="green">Ice</td><td class="red">Lightning</td></tr>
+        <tr><td>Ice</td><td class="green">Earth</td><td class="red">Water</td></tr>
+        <tr><td>Earth</td><td class="green">Fire</td><td class="red">Ice</td></tr>
+      </tbody>
+    </table></div>
+    <div class="spellbox"><h4>Unlisted pairs</h4><p>The wheel order is <b>Fire &rarr; Nature &rarr; Lightning &rarr; Water &rarr; Ice &rarr; Earth</b>. For unequal elements not listed above, the element earlier in this order receives the advantage. Same element remains 1.0&times;.</p></div>
+    <div class="grid-3"><div class="panel"><h3>1.25&times;</h3><p>Advantage. Your attack has the edge.</p></div><div class="panel"><h3>1.0&times;</h3><p>Same element. Neither side is pressured.</p></div><div class="panel"><h3>0.8&times;</h3><p>Disadvantage. Your attack is pressured.</p></div></div>
+    <div class="page-number">05</div>
+  </section>
+
+  <section class="leaf chapter" id="ch6">
+    <header class="chapter-head">
+      <div class="chapter-seal">VI</div>
+      <div class="chapter-number">Chapter VI &middot; The Arena</div>
+      <h2 class="chapter-title">Relic Codex</h2>
+      <p class="chapter-subtitle">Seven one-use spells that change a turn</p>
+      <div class="magic-rule"><span>&#10022;</span></div>
+    </header>
+    <p class="drop">Relics are not creature cards and do not use hoard slots. They are consumed when played. Each type stacks to <b>three copies</b>. An excess copy converts to its listed coin price. Relic pulls are selected uniformly from the seven types.</p>
+    <div class="relic-grid">
+      <article class="relic"><div class="relic-icon">&#129657;</div><h4>Bloodstone Idol</h4><p>Your next attack deals 2&times; damage.</p><span class="relic-tag">Relic &middot; 45 coins</span></article>
+      <article class="relic"><div class="relic-icon">&#127807;</div><h4>Verdant Relic</h4><p>Fully restores the active card's health.</p><span class="relic-tag">Relic &middot; 45 coins</span></article>
+      <article class="relic"><div class="relic-icon">&#128737;</div><h4>Aegis Shard</h4><p>Deflects the enemy's next attack completely.</p><span class="relic-tag">Relic &middot; 45 coins</span></article>
+      <article class="relic rare"><div class="relic-icon">&#128128;</div><h4>Wraith Fang</h4><p>Deals OVR &times; 1.4 &times; element damage and heals half the damage dealt.</p><span class="relic-tag">Legendary &middot; 95 coins</span></article>
+      <article class="relic rare"><div class="relic-icon">&#10052;</div><h4>Frost Sigil</h4><p>The enemy skips its next turn.</p><span class="relic-tag">Legendary &middot; 95 coins</span></article>
+      <article class="relic rare"><div class="relic-icon">&#128293;</div><h4>Soulbrand Ember</h4><p>Your next attack deals 3&times; damage.</p><span class="relic-tag">Legendary &middot; 95 coins</span></article>
+      <article class="relic rare"><div class="relic-icon">&#128293;</div><h4>Phoenix Relic</h4><p>Revives one fallen front-line card at half max HP. It cannot revive Redemption.</p><span class="relic-tag">Legendary &middot; 110 coins</span></article>
+    </div>
+    <h2>Timing Rules</h2>
+    <ul class="rune-list"><li><span>Using any relic is your action; the enemy receives the next turn.</span></li><li><span>Aegis Shard sets the incoming attack to zero and removes its pending charge.</span></li><li><span>Frost Sigil skips the enemy's next turn, giving you the next action again.</span></li><li><span>Shielding or stunning an enemy cancels its pending 2&times; or 3&times; charge, but the enemy's charge relic is still consumed.</span></li><li><span>The enemy AI reads element advantage, health, shields, and pending charges before choosing a response.</span></li></ul>
+    <div class="spellbox violet"><h4>Current build note</h4><p>The bot is limited to ten relic uses in a fight. The player-side relic row currently draws from available inventory without enforcing a separate ten-use hard stop; ten is the intended battle-cap rule, but the player limit is not yet enforced in code.</p></div>
+    <div class="page-number">06</div>
+  </section>
+
+  <section class="leaf chapter" id="ch7">
+    <header class="chapter-head">
+      <div class="chapter-seal">VII</div>
+      <div class="chapter-number">Chapter VII &middot; The Ascent</div>
+      <h2 class="chapter-title">Evolution and XP</h2>
+      <p class="chapter-subtitle">The exact climb from first form to God Tier</p>
+      <div class="magic-rule"><span>&#10022;</span></div>
+    </header>
+    <p class="drop">XP belongs to the individual card. Combat events award XP, and losses can pull a card back down. Every level adds +4 to Power, Cunning, and Arcana. Level 15 is the hard ceiling; total XP is clamped at <b>12,600</b>.</p>
+    <div class="evo-track">
+      <article class="evo"><div class="evo-orb">I</div><h4>Base Form</h4><span class="range">Levels 1&ndash;4</span><p>Original frame and first identity.</p></article>
+      <article class="evo s2"><div class="evo-orb">II</div><h4>Second Evolution</h4><span class="range">Levels 5&ndash;9</span><p>New frame, colors, and stronger stats.</p></article>
+      <article class="evo s3"><div class="evo-orb">III</div><h4>God Tier</h4><span class="range">Levels 10&ndash;15</span><p>Special finish, aura, and level cap.</p></article>
+    </div>
+    <div class="table-scroll"><table>
+      <thead><tr><th>Level</th><th>Cumulative XP</th><th>Evolution</th><th>Stat bonus vs. level 1</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td class="num">0</td><td>Base</td><td class="num">+0</td></tr>
+        <tr><td>2</td><td class="num">250</td><td>Base</td><td class="num">+4</td></tr>
+        <tr><td>3</td><td class="num">600</td><td>Base</td><td class="num">+8</td></tr>
+        <tr><td>4</td><td class="num">1,050</td><td>Base</td><td class="num">+12</td></tr>
+        <tr><td>5</td><td class="num">1,600</td><td>Second</td><td class="num">+16</td></tr>
+        <tr><td>6</td><td class="num">2,250</td><td>Second</td><td class="num">+20</td></tr>
+        <tr><td>7</td><td class="num">3,000</td><td>Second</td><td class="num">+24</td></tr>
+        <tr><td>8</td><td class="num">3,850</td><td>Second</td><td class="num">+28</td></tr>
+        <tr><td>9</td><td class="num">4,800</td><td>Second</td><td class="num">+32</td></tr>
+        <tr><td>10</td><td class="num">5,850</td><td>God Tier</td><td class="num">+36</td></tr>
+        <tr><td>11</td><td class="num">7,000</td><td>God Tier</td><td class="num">+40</td></tr>
+        <tr><td>12</td><td class="num">8,250</td><td>God Tier</td><td class="num">+44</td></tr>
+        <tr><td>13</td><td class="num">9,600</td><td>God Tier</td><td class="num">+48</td></tr>
+        <tr><td>14</td><td class="num">11,050</td><td>God Tier</td><td class="num">+52</td></tr>
+        <tr><td>15</td><td class="num">12,600</td><td>God Tier</td><td class="num">+56</td></tr>
+      </tbody>
+    </table></div>
+    <div class="grid-2"><div class="spellbox"><h4>Win event</h4><p>Combat win: <b>+100 XP</b>. A clean victory gives all four player cards one win and +100 XP.</p></div><div class="spellbox danger"><h4>Loss event</h4><p>Combat loss: <b>-50 XP</b> and streak reset. When XP falls below a threshold, the card de-levels to the highest threshold it still meets.</p></div></div>
+    <div class="page-number">07</div>
+  </section>
+
+  <section class="leaf chapter" id="ch8">
+    <header class="chapter-head">
+      <div class="chapter-seal">VIII</div>
+      <div class="chapter-number">Chapter VIII &middot; The Ascent</div>
+      <h2 class="chapter-title">Protection and Favorites</h2>
+      <p class="chapter-subtitle">What each safeguard really blocks</p>
+      <div class="magic-rule"><span>&#10022;</span></div>
+    </header>
+    <p class="drop">A sleeve is a physical ward around a card. A favorite is only a selling preference. They are not interchangeable, and neither one makes a card untouchable in every system.</p>
+    <div class="table-scroll"><table>
+      <thead><tr><th>Action</th><th>Sleeved</th><th>Favorite only</th></tr></thead>
+      <tbody>
+        <tr><td>Choose for battle</td><td class="red">Blocked</td><td class="green">Allowed</td></tr>
+        <tr><td>Choose as Redemption</td><td class="red">Blocked</td><td class="green">Allowed</td></tr>
+        <tr><td>Direct sale</td><td class="red">Blocked</td><td class="green">Allowed</td></tr>
+        <tr><td>Bulk non-favorite sale</td><td class="red">Blocked</td><td class="red">Skipped</td></tr>
+        <tr><td>Overflow replacement</td><td class="red">Blocked</td><td class="green">Allowed</td></tr>
+        <tr><td>Become Crown Jewel</td><td class="red">Blocked</td><td class="green">Allowed</td></tr>
+        <tr><td>Trade</td><td class="green">Allowed</td><td class="green">Allowed</td></tr>
+        <tr><td>Send to grading</td><td class="green">Allowed</td><td class="green">Allowed</td></tr>
+      </tbody>
+    </table></div>
+    <div class="spellbox"><h4>Favorite rule</h4><p>Favorites only exclude a card from the <b>Sell Non-Favorites</b> bulk action. A favorite can still be directly sold, traded, graded, battled, or lost as the Crown Jewel.</p></div>
+    <p>While a card is in the Grading Lab, it cannot be sold, battled, or selected for trade. Grading temporarily controls the card even if it was sleeved or favorited first.</p>
+    <div class="page-number">08</div>
+  </section>
+
+  <section class="leaf chapter" id="ch9">
+    <header class="chapter-head">
+      <div class="chapter-seal">IX</div>
+      <div class="chapter-number">Chapter IX &middot; The Ascent</div>
+      <h2 class="chapter-title">The Grading Lab</h2>
+      <p class="chapter-subtitle">Condition, cost, timer, and value</p>
+      <div class="magic-rule"><span>&#10022;</span></div>
+    </header>
+    <p class="drop">A card's condition is hidden until submitted to the lab. Each submission costs <b>200 coins</b>, takes <b>three minutes</b>, and uses one of the <b>three simultaneous lab slots</b>. A completed grade cannot be submitted again.</p>
+    <div class="table-scroll"><table>
+      <thead><tr><th>Grade</th><th>Label</th><th>Value multiplier</th><th>Baseline weight</th></tr></thead>
+      <tbody>
+        <tr><td>10</td><td>GEM MT</td><td class="num">10&times;</td><td class="num">2%</td></tr>
+        <tr><td>9</td><td>MINT</td><td class="num">5&times;</td><td class="num">3%</td></tr>
+        <tr><td>8</td><td>NM&ndash;MT</td><td class="num">2.5&times;</td><td class="num">5%</td></tr>
+        <tr><td>7</td><td>NM</td><td class="num">1.3&times;</td><td class="num">8%</td></tr>
+        <tr><td>6</td><td>EX&ndash;NM</td><td class="num">1&times;</td><td class="num">10%</td></tr>
+        <tr><td>5</td><td>EX</td><td class="num">0.75&times;</td><td class="num">12%</td></tr>
+        <tr><td>4</td><td>VG&ndash;EX</td><td class="num">0.55&times;</td><td class="num">15%</td></tr>
+        <tr><td>3</td><td>VG</td><td class="num">0.4&times;</td><td class="num">16%</td></tr>
+        <tr><td>2</td><td>GD</td><td class="num">0.3&times;</td><td class="num">15%</td></tr>
+        <tr><td>1</td><td>PR</td><td class="num">0.2&times;</td><td class="num">14%</td></tr>
+      </tbody>
+    </table></div>
+    <div class="spellbox violet"><h4>How to read the odds</h4><p>The percentages are baseline grade weights, not guaranteed fixed odds. The roll is also influenced by serial range and battle history. A GEM MT 10 is rare, and its 10&times; multiplier is applied after the grade is revealed.</p></div>
+    <div class="spellbox danger"><h4>Lab lock</h4><p>A card in progress cannot be sold, battled, or selected for trade. It returns when the timer ends. Sleeves do not prevent grading, and a sleeved card remains protected from the Crown Jewel while it is in the lab.</p></div>
+    <div class="page-number">09</div>
+  </section>
+
+  <section class="leaf chapter" id="ch10">
+    <header class="chapter-head">
+      <div class="chapter-seal">X</div>
+      <div class="chapter-number">Chapter X &middot; The Ledger</div>
+      <h2 class="chapter-title">Economy and Reset</h2>
+      <p class="chapter-subtitle">The coin flows, bankruptcy threshold, and manual reset</p>
+      <div class="magic-rule"><span>&#10022;</span></div>
+    </header>
+    <p class="drop">Coins fund packs and grading. Card value is your reserve when the purse is empty. The game does not end simply because the coin counter reaches zero; it checks whether your collection can still recover.</p>
+    <div class="table-scroll"><table>
+      <thead><tr><th>Source or sink</th><th>Coin change</th></tr></thead>
+      <tbody>
+        <tr><td>Fresh or reset profile</td><td class="num">100</td></tr>
+        <tr><td>Open one pack</td><td class="num">-100</td></tr>
+        <tr><td>Victory without Redemption</td><td class="num">+35</td></tr>
+        <tr><td>Redemption/combat victory</td><td class="num">+10 per eligible combat entry</td></tr>
+        <tr><td>Defeat</td><td class="num">-35 per KO event</td></tr>
+        <tr><td>Submit a card to grading</td><td class="num">-200</td></tr>
+      </tbody>
+    </table></div>
+    <h2>Bankruptcy Condition</h2>
+    <p>The legend-ending check requires all three conditions:</p>
+    <ul class="rune-list"><li><span>Fewer than <b>four distinct playable creature names</b> remain.</span></li><li><span>No card is currently waiting in the Grading Lab.</span></li><li><span><b>Coins + total hoard value &lt; 100</b>.</span></li></ul>
+    <p>Sleeved cards do not count as playable for the first condition, but their value still counts toward the coin/value threshold. The game shows the legend-ending screen and requires confirmation before creating the fresh starter hoard.</p>
+    <div class="spellbox danger"><h4>Manual reset</h4><p>Settings &rarr; Clear Account Data &rarr; hold for 1.5 seconds. This wipes cards, relics, grades, coins, records, and pending queues, then creates a fresh 100-coin starter hoard. Issued serial reservations are intended to remain reserved.</p></div>
+    <div class="page-number">10</div>
+  </section>
+
+  <section class="leaf chapter" id="ch11">
+    <header class="chapter-head">
+      <div class="chapter-seal">XI</div>
+      <div class="chapter-number">Chapter XI &middot; The Ledger</div>
+      <h2 class="chapter-title">Trade Circles</h2>
+      <p class="chapter-subtitle">A one-for-one exchange between collectors</p>
+      <div class="magic-rule"><span>&#10022;</span></div>
+    </header>
+    <p class="drop">Trading is an online ritual. Firebase connectivity is required. One collector creates an <b>SV room code</b>; the other joins it. Each side selects one card, reviews the offer, and confirms. Nothing moves until both confirmations are present.</p>
+    <div class="table-scroll"><table>
+      <thead><tr><th>Rule</th><th>Current behavior</th></tr></thead>
+      <tbody>
+        <tr><td>Exchange type</td><td>One card for one card; no coin balancing</td></tr>
+        <tr><td>Connection</td><td>Firebase online connection required</td></tr>
+        <tr><td>Room</td><td>Host creates an SV room code; partner joins</td></tr>
+        <tr><td>Confirmation</td><td>Both collectors must confirm</td></tr>
+        <tr><td>Same-name rule</td><td>Cards with the same creature name cannot be exchanged</td></tr>
+        <tr><td>Transfer</td><td>Stats, level, XP, record, grade, rarity, element, serial, favorite, sleeve, and first-edition status transfer; the receiver gets a new local instance ID</td></tr>
+      </tbody>
+    </table></div>
+    <div class="grid-2"><div class="spellbox"><h4>Sleeved cards</h4><p>A sleeve blocks battle, sale, overflow replacement, and Crown Jewel selection, but it does not block trading.</p></div><div class="spellbox"><h4>Graded cards</h4><p>A completed grade can trade. A card actively in the Grading Lab cannot be selected until the timer ends.</p></div></div>
+    <p>Compare instances, not names. Before confirming, inspect OVR, element, level, grade, serial, record, and value on both sides.</p>
+    <div class="page-number">11</div>
+  </section>
+
+  <section class="leaf chapter" id="ch12">
+    <header class="chapter-head">
+      <div class="chapter-seal">XII</div>
+      <div class="chapter-number">Chapter XII &middot; The Ledger</div>
+      <h2 class="chapter-title">Hall of Fame</h2>
+      <p class="chapter-subtitle">Where the rarest completed instances are ranked</p>
+      <div class="magic-rule"><span>&#10022;</span></div>
+    </header>
+    <p class="drop">The Hall of Fame is a Firebase-backed global board. Each account publishes its top five graded cards. The public board displays the five highest-valued cards across all accounts, and player-facing entries keep owners anonymous.</p>
+    <div class="grid-2"><div class="spellbox"><h4>Eligibility</h4><p>Only completed graded cards qualify. Ungraded cards and cards still in the lab cannot appear.</p></div><div class="spellbox violet"><h4>Ranking</h4><p>Calculated card value decides rank. If values tie, the lower serial number wins the tie.</p></div></div>
+    <h2>What builds value</h2>
+    <ul class="rune-list"><li><span>Rarity base value and the instance's OVR.</span></li><li><span>Grade multiplier, from 0.2&times; at PR to 10&times; at GEM MT.</span></li><li><span>Serial bonus and the additional 1.5&times; first-edition multiplier.</span></li><li><span>Battle record, including wins and losses.</span></li></ul>
+    <div class="spellbox"><h4>Collector's target</h4><p>The statistical ceiling is a specific creature with Celestial rarity, serial #0001, first-edition status, and GEM MT 10. The nominal odds are <b>about 1 in 3 billion</b>: 1/500 Celestial &times; 1/12 creature &times; 1/9,999 serial #0001 &times; 1/50 grade 10, assuming an unused serial and a later grade roll.</p></div>
+    <div class="page-number">12</div>
+  </section>
+
+  <section class="leaf chapter" id="appendix">
+    <header class="chapter-head">
+      <div class="chapter-seal">A</div>
+      <div class="chapter-number">Appendix &middot; Quick Reference</div>
+      <h2 class="chapter-title">Read the Runes</h2>
+      <p class="chapter-subtitle">The rules worth checking before you commit</p>
+      <div class="magic-rule"><span>&#10022;</span></div>
+    </header>
+    <div class="grid-2">
+      <div class="panel"><h3>Before a battle</h3><ul class="rune-list"><li><span>Choose 3 front-line cards and 1 Redemption card.</span></li><li><span>Remove sleeved and grading-locked cards from consideration.</span></li><li><span>Check the active element matchup.</span></li><li><span>Keep a shield or stun ready for a charged attack.</span></li></ul></div>
+      <div class="panel"><h3>Before a sale</h3><ul class="rune-list"><li><span>Inspect serial, first-edition status, rarity, grade, OVR, and record.</span></li><li><span>Favorite a card to skip bulk non-favorite selling.</span></li><li><span>Sleeve a card to block direct sale and Crown Jewel loss.</span></li><li><span>Remember: favorites alone are not protection.</span></li></ul></div>
+      <div class="panel"><h3>Before grading</h3><ul class="rune-list"><li><span>Cost: 200 coins.</span></li><li><span>Timer: 3 minutes.</span></li><li><span>Slots: 3 at once.</span></li><li><span>The card is locked from battle, sale, and trade during the timer.</span></li></ul></div>
+      <div class="panel"><h3>Before trading</h3><ul class="rune-list"><li><span>Confirm Firebase connectivity.</span></li><li><span>It is one card for one card; coins cannot balance the offer.</span></li><li><span>Same-creature names are rejected.</span></li><li><span>Both collectors must confirm.</span></li></ul></div>
+    </div>
+    <div class="spellbox"><h4>Four numbers to remember</h4><p><span class="em">100</span> coins per pack &middot; <span class="em">5</span> finds per pack &middot; <span class="em">15</span> creature hoard slots &middot; <span class="em">15</span> maximum card level</p></div>
+    <p>When in doubt, inspect the instance. The game is built around the difference between a creature template and the particular card in your collection.</p>
+    <div class="page-number">13</div>
+  </section>
+
+  <footer class="book-end">&#10022; Shadowveil &middot; The Arcane Grimoire &middot; Version 0.2 &#10022;</footer>
+</main>
+
+<script>
+  const root = document.documentElement;
+  const glyphs = ['✦', '◇', '✧', '☽', '✶'];
+  function castRipple(x, y) {
+    const ripple = document.createElement('span');
+    ripple.className = 'spell-ripple';
+    ripple.style.left = `${x}px`;
+    ripple.style.top = `${y}px`;
+    document.body.appendChild(ripple);
+    setTimeout(() => ripple.remove(), 850);
+  }
+  function castGlyphs(x, y) {
+    glyphs.forEach((glyph, index) => {
+      const spark = document.createElement('span');
+      spark.className = 'glyph-spark';
+      spark.textContent = glyph;
+      spark.style.setProperty('--x', `${x + (index - 2) * 12}px`);
+      spark.style.setProperty('--y', `${y}px`);
+      spark.style.setProperty('--drift', `${(index - 2) * 18}px`);
+      spark.style.setProperty('--delay', `${index * 35}ms`);
+      document.body.appendChild(spark);
+      setTimeout(() => spark.remove(), 1250);
+    });
+  }
+  document.addEventListener('pointermove', event => {
+    if (event.pointerType === 'mouse' || event.pointerType === 'pen') {
+      root.style.setProperty('--mx', `${event.clientX}px`);
+      root.style.setProperty('--my', `${event.clientY}px`);
+    }
+  });
+  document.addEventListener('pointerdown', event => {
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
+    castRipple(event.clientX, event.clientY);
+    if (event.target.closest('.sigil, .chapter-seal')) castGlyphs(event.clientX, event.clientY);
+  });
+  const toggle = document.getElementById('codexToggle');
+  const drawer = document.getElementById('codexDrawer');
+  const scrim = document.getElementById('codexScrim');
+  const close = document.getElementById('codexClose');
+  function setDrawer(open) {
+    drawer.classList.toggle('open', open);
+    scrim.classList.toggle('open', open);
+    document.body.classList.toggle('drawer-open', open);
+    toggle.setAttribute('aria-expanded', String(open));
+  }
+  toggle.addEventListener('click', () => setDrawer(!drawer.classList.contains('open')));
+  close.addEventListener('click', () => setDrawer(false));
+  scrim.addEventListener('click', () => setDrawer(false));
+  document.querySelectorAll('.codex-nav a').forEach(link => link.addEventListener('click', () => setDrawer(false)));
+  document.addEventListener('keydown', event => { if (event.key === 'Escape') setDrawer(false); });
+</script>
 </body>
 </html>
